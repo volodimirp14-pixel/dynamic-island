@@ -218,10 +218,10 @@ namespace IdleStripLayout {
     constexpr float kDividerWidth = 1.0f;
     constexpr float kDividerInsetY = 9.0f;
 
-    // Room reserved on the right for the mic/camera dot. DrawPrivacyDots anchors
-    // it at rect.right - 20 with a 4px radius, so 18px clears it without letting
-    // the text slide under it. Previously this was stolen from the text box while
-    // the pill stayed 96px, so the clock just re-centred into a narrower slot.
+    // Room for the mic/camera dot. DrawPrivacyDots anchors it at rect.right - 20
+    // with a 4px radius, so 18px clears it. Standalone 0.6: reserved on BOTH
+    // sides (the collapsed idle pill grows by 2 x 18px), so the clock stays
+    // centred on the screen and the dot sits in its own lane on the right.
     constexpr float kPrivacyReserve = 18.0f;
 
     constexpr float kHeight = 36.0f;
@@ -612,6 +612,7 @@ struct Settings {
     bool bluetoothShowBattery = true;
     D2D1_COLOR_F privacyDotsMicHex = D2D1::ColorF(1.0f, 0.584f, 0.0f, 1.0f); // #FF9500
     D2D1_COLOR_F privacyDotsCamHex = D2D1::ColorF(0.133f, 0.776f, 0.239f, 1.0f); // #10B981
+    D2D1_COLOR_F privacyDotsBothHex = D2D1::ColorF(0xBF5AF2);  // standalone 0.6: mic + camera
     float tintOpacity = 0.72f;
     float pillOpacity = 0.96f;
     bool gameOverlay = false;
@@ -2546,6 +2547,7 @@ void LoadSettings() {
 
     std::wstring camHexStr = GetStringSettingWithFallback(L"Indicators.PrivacyDotsCamHex", L"Indicators.CamDotHex", L"Modules.PrivacyDotsCamHex");
     next.privacyDotsCamHex = ColorFromHex(camHexStr, D2D1::ColorF(0.204f, 0.780f, 0.349f, 1.0f));
+    next.privacyDotsBothHex = ColorFromHex(GetStringSettingCopy(L"Indicators.PrivacyDotsBothHex"), D2D1::ColorF(0xBF5AF2));
 
     // Compatibility aliases: always keep in sync
     next.privacyDotsEnabled = next.privacyDots;
@@ -8857,6 +8859,16 @@ struct MarqueeLayoutCache {
 // Renderer::MeasureIdleStrip. The render loop uses totalWidth to size the
 // island; DrawIdleDashboard uses the per-slot widths to place the clock, divider
 // and weather reading inside it.
+// Standalone 0.6: one place that decides whether the mic/camera dot is shown on
+// the collapsed island. Hidden while the music player is up (the user's choice).
+inline bool PrivacyDotShown(const SharedState& state, const Settings& settings) {
+    if (settings.media && state.media.available) {
+        return false;
+    }
+    return settings.privacyDots && ((state.system.micActive && settings.privacyDotsMic) ||
+                                    (state.system.cameraActive && settings.privacyDotsCam));
+}
+
 struct IdleStripMetrics {
     float clockWidth = 0.0f;
     float weatherWidth = 0.0f;
@@ -9202,9 +9214,7 @@ class Renderer {
                 MeasureTextWidthCached(WidestDigitForm(label), fmt, idleWeatherWidthCache_);
         }
 
-        metrics.hasPrivacy =
-            (state.system.micActive && settings.privacyDots && settings.privacyDotsMic) ||
-            (state.system.cameraActive && settings.privacyDots && settings.privacyDotsCam);
+        metrics.hasPrivacy = PrivacyDotShown(state, settings);
 
         float total = IdleStripLayout::kPadX * 2.0f + metrics.clockWidth;
         if (metrics.hasWeather) {
@@ -9212,7 +9222,7 @@ class Renderer {
                      metrics.weatherWidth;
         }
         if (metrics.hasPrivacy) {
-            total += IdleStripLayout::kPrivacyReserve;
+            total += IdleStripLayout::kPrivacyReserve * 2.0f;  // both sides: stays centred
         }
 
         total = std::ceil(total / IdleStripLayout::kWidthQuantum) * IdleStripLayout::kWidthQuantum;
@@ -9955,10 +9965,13 @@ class Renderer {
                 break;
         }
 
-        // ── Apple-style privacy indicator dots ───────────────────────────────
-        // Green dot = camera in use, Orange dot = mic in use.
-        // Drawn in top-right corner of pill, outside content area.
-        DrawPrivacyDots(state, settings, unscaledRect, now);
+        // ── Apple-style privacy indicator dot ────────────────────────────────
+        // Standalone 0.6: on the collapsed clock pill only (it reserves a lane
+        // for it on both sides, so the island stays centred); hidden while the
+        // music player is up. Orange = mic, green = camera, purple = both.
+        if (activity.kind == IslandKind::Idle && PrivacyDotShown(state, settings)) {
+            DrawPrivacyDots(state, settings, unscaledRect, now);
+        }
 
         target_->SetTransform(oldTransform);
     }
@@ -10121,24 +10134,16 @@ class Renderer {
 
         const float x = rect.right - margin - dotR;
 
-        if (cam) {
-            D2D1_COLOR_F camColor = settings.privacyDotsCamHex;
-            camColor.a = settingsOpacity_;
-            if (!camDotBrush_) target_->CreateSolidColorBrush(camColor, &camDotBrush_);
-            else camDotBrush_->SetColor(camColor);
-
-            if (camDotBrush_) {
-                target_->FillEllipse(D2D1::Ellipse(D2D1::Point2F(x, dotY), dotR, dotR), camDotBrush_.Get());
-            }
-        } else if (mic) {
-            D2D1_COLOR_F micColor = settings.privacyDotsMicHex;
-            micColor.a = settingsOpacity_;
-            if (!micDotBrush_) target_->CreateSolidColorBrush(micColor, &micDotBrush_);
-            else micDotBrush_->SetColor(micColor);
-
-            if (micDotBrush_) {
-                target_->FillEllipse(D2D1::Ellipse(D2D1::Point2F(x, dotY), dotR, dotR), micDotBrush_.Get());
-            }
+        // Standalone 0.6: one dot -- orange = microphone, green = camera,
+        // purple = both at once.
+        D2D1_COLOR_F color = (mic && cam) ? settings.privacyDotsBothHex
+                             : cam        ? settings.privacyDotsCamHex
+                                          : settings.privacyDotsMicHex;
+        color.a = settingsOpacity_;
+        if (!micDotBrush_) target_->CreateSolidColorBrush(color, &micDotBrush_);
+        else micDotBrush_->SetColor(color);
+        if (micDotBrush_) {
+            target_->FillEllipse(D2D1::Ellipse(D2D1::Point2F(x, dotY), dotR, dotR), micDotBrush_.Get());
         }
     }
 
@@ -11600,7 +11605,7 @@ class Renderer {
             D2D1_COLOR_F dotColor;
 
             if (camActive && micActive) {
-                dotColor = settings.privacyDotsCamHex;
+                dotColor = settings.privacyDotsBothHex;
                 if (!state.system.cameraApp.empty() && !state.system.micApp.empty() && state.system.cameraApp == state.system.micApp) {
                     label = state.system.cameraApp + L" is using camera & microphone";
                 } else if (!state.system.cameraApp.empty() && !state.system.micApp.empty()) {
@@ -11763,7 +11768,7 @@ class Renderer {
             // its lane rather than shrinking the text box out from under the clock.
             const float privacyReserve =
                 idleMetrics.hasPrivacy ? IdleStripLayout::kPrivacyReserve * scale : 0.0f;
-            const float innerLeft = rect.left + IdleStripLayout::kPadX * scale;
+            const float innerLeft = rect.left + IdleStripLayout::kPadX * scale + privacyReserve;
             const float innerRight =
                 rect.right - IdleStripLayout::kPadX * scale - privacyReserve;
 
@@ -12723,13 +12728,10 @@ class Renderer {
 
             // The cover itself is drawn by the shared art pass at the end of DrawMedia.
 
-            float shiftX = 0.0f;
-            if (state.system.micActive || state.system.cameraActive) {
-                shiftX = 22.0f;
-            }
-
-            D2D1_RECT_F waveRect = D2D1::RectF(rect.right - 42.0f - shiftX, cy - 10.0f,
-                                               rect.right - 14.0f - shiftX, cy + 10.0f);
+            // Standalone 0.6: the mic/camera dot is not shown while the player is,
+            // so the spectrum keeps its place.
+            D2D1_RECT_F waveRect = D2D1::RectF(rect.right - 42.0f, cy - 10.0f,
+                                               rect.right - 14.0f, cy + 10.0f);
             if (state.media.playing) {
                 DrawSpectrum(state, waveRect, settings, now);
             } else {
