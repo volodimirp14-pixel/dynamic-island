@@ -3272,6 +3272,9 @@ std::atomic<double> g_snapPauseUntil{0.0}; // wiggle stops briefly when it snaps
 POINT g_downPt = {};
 int g_startOffset = 0;
 bool g_snapped = false;
+// Standalone 0.11.3: offset range for the open island (while dragging) and for a
+// small collapsed one (so after release a collapsed island can sit at the edge).
+int g_openMin = 0, g_openMax = 0, g_edgeMin = 0, g_edgeMax = 0;
 
 bool Active() { return g_active.load(std::memory_order_relaxed); }
 
@@ -3371,6 +3374,24 @@ void Follow(HWND hwnd) {
     const int minOffset = static_cast<int>(std::ceil(-baseLeft));
     const int maxOffset = std::max(minOffset, static_cast<int>(std::floor(workW - pillW - baseLeft)));
     offset = std::clamp(offset, minOffset, maxOffset);
+    {
+        // Same limits for the smallest collapsed island (clock only). Positions
+        // left / right are anchored by an edge, so its base moves with the width.
+        const float edgeW = std::min(workW, 96.0f * scale);
+        float edgeBase = (workW - edgeW) * 0.5f;
+        if (position == Position::TopLeft || position == Position::BottomLeft) edgeBase = 16.0f;
+        if (position == Position::TopRight || position == Position::BottomRight) edgeBase = workW - 16.0f - edgeW;
+        // Offsets move the anchor, not the pill, so convert through the anchor.
+        g_openMin = minOffset;
+        g_openMax = maxOffset;
+        g_edgeMin = static_cast<int>(std::ceil(-edgeBase));
+        g_edgeMax = static_cast<int>(std::floor(workW - edgeW - edgeBase));
+        if (!Centered(position)) {
+            // Edge-anchored positions: same anchor for every width; use the open limits.
+            g_edgeMin = minOffset;
+            g_edgeMax = maxOffset;
+        }
+    }
     if (Centered(position)) {
         // Magnet: close to the middle -> exactly the middle.
         const int snapPx = static_cast<int>(std::max(16.0f, 28.0f * scale));
@@ -3402,6 +3423,12 @@ void End(HWND hwnd) {
     {
         std::lock_guard lock(g_settingsMutex);
         offset = g_settings.offsetX;
+        // Released against a screen edge: let the collapsed island go all the way to
+        // that edge. Opening it later grows it toward the other side (see
+        // ComputeStageLayout), so it never sticks out of the screen.
+        if (offset >= g_openMax && g_edgeMax > g_openMax) offset = g_edgeMax;
+        else if (offset <= g_openMin && g_edgeMin < g_openMin) offset = g_edgeMin;
+        g_settings.offsetX = offset;
     }
     std::string error;
     if (!di::settings::SetValue("Appearance.OffsetX", std::to_string(offset), &error)) {
@@ -3460,6 +3487,24 @@ StageLayout ComputeStageLayout(const Settings& settings, float pillW, float pill
             break;
     }
     s.origin.x += settings.offsetX;
+
+    // Standalone 0.11.3: the pill never leaves the screen. Moved against a screen
+    // edge, it stays flush with that edge and grows toward the opposite side when it
+    // opens (the stage is wide enough to give it room on the inner side).
+    {
+        const float margin = 2.0f + pillW * 0.0125f;  // room for the hover enlargement
+        const float screenLeft = static_cast<float>(s.origin.x) + s.pillLeft;
+        float shift = 0.0f;
+        if (screenLeft < work.left + margin) {
+            shift = work.left + margin - screenLeft;
+        } else if (screenLeft + pillW > work.right - margin) {
+            shift = (work.right - margin) - (screenLeft + pillW);
+        }
+        if (shift != 0.0f) {
+            const float maxLeft = std::max(kRenderPadX, static_cast<float>(s.width) - kRenderPadX - pillW);
+            s.pillLeft = std::clamp(s.pillLeft + shift, kRenderPadX, maxLeft);
+        }
+    }
 
     // Vertical. Bottom positions keep the pill's bottom edge fixed, so it grows upward.
     const int offsetY = ResolveOffsetY(pillH + kRenderPadY * 2.0f);
