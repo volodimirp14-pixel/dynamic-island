@@ -53,7 +53,7 @@ footer { color: var(--muted); font-size: 13px; margin-top: 32px; }
   </section>
   <script>
     // Donation links: paste the addresses here (the same ones as in src/common/Links.h).
-    const DONATE = { eu: '', ru: '' };
+    const DONATE = { eu: 'https://donatello.to/DynamicIsland', ru: 'https://donatepay.ru/don/1545186' };
     for (const id of ['eu', 'ru']) {
       const a = document.getElementById('donate-' + id);
       if (DONATE[id].startsWith('https://')) { a.href = DONATE[id]; a.target = '_blank'; a.rel = 'noopener'; document.getElementById('donate-' + id + '-note').remove(); }

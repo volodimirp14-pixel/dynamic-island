@@ -2,8 +2,8 @@
 
 ## Поддержать проект
 Dynamic Island бесплатный и со всеми функциями. Поддержать разработку можно донатом:
-- **Донат EU** — ссылка скоро появится
-- **Донат RU** — ссылка скоро появится
+- **Донат EU** (Европа и остальной мир): [donatello.to/DynamicIsland](https://donatello.to/DynamicIsland)
+- **Донат RU** (Россия и СНГ): [donatepay.ru/don/1545186](https://donatepay.ru/don/1545186)
 
 - `windhawk/` — рабочая версия-мод для Windhawk (1.4.0-custom.20). Не удаляется до завершения перехода.
 - `docs/` — документация проекта: PROJECT_CONTEXT, CHANGELOG, TODO, STANDALONE_AUDIT (план перехода на самостоятельное приложение).
