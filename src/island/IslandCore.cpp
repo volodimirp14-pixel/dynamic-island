@@ -6740,6 +6740,19 @@ int ReadBluetoothDeviceBattery(const std::wstring& id, const std::wstring& name,
     return TryReadBluetoothBatteryPercent(winrt::hstring(id));
 }
 
+// Standalone 0.7.4: not a real accessory connection. AirPods and other
+// headphones keep a separate low-energy entry ("... - Find My", case/fast
+// pairing) that Windows reports as connected while no audio is connected; the
+// real headphone connection is the classic (audio) one.
+bool IsShadowBluetoothEntry(const std::wstring& id, const std::wstring& name, BluetoothDeviceCategory category) {
+    const std::wstring lowerName = ToLowerCopy(name);
+    if (lowerName.find(L"find my") != std::wstring::npos) {
+        return true;
+    }
+    const bool lowEnergy = ToLowerCopy(id).rfind(L"bluetoothle#", 0) == 0;
+    return lowEnergy && (category == BluetoothDeviceCategory::Headphones || category == BluetoothDeviceCategory::Speaker);
+}
+
 int BluetoothCategoryRank(BluetoothDeviceCategory c) {
     switch (c) {
         case BluetoothDeviceCategory::Gamepad: return 0;
@@ -6768,6 +6781,7 @@ void RefreshBluetoothBatteries(const std::vector<std::pair<std::wstring, Bluetoo
         size_t sonyNext = 0;
         for (const auto& [id, dev] : connected) {
             if (dev.category == BluetoothDeviceCategory::Phone) continue;  // a phone linked for calls, not an accessory
+            if (IsShadowBluetoothEntry(id, dev.name, dev.category)) continue;  // standalone 0.7.4
             bool duplicate = false;
             for (const BluetoothBatteryItem& it : items) duplicate = duplicate || it.name == dev.name;
             if (duplicate) continue;  // dual-mode devices show up in both watchers
@@ -6830,6 +6844,10 @@ void HandleBluetoothConnected(
     }
 
     if (!g_settings.bluetoothIndicator) {
+        return;
+    }
+    // Standalone 0.7.4: no "connected" card for the low-energy side link of headphones.
+    if (IsShadowBluetoothEntry(std::wstring(info.Id().c_str()), name, category)) {
         return;
     }
 
@@ -6915,6 +6933,9 @@ void HandleBluetoothDisconnected(
     }
     if (name.empty()) {
         name = L"Bluetooth Device";
+    }
+    if (IsShadowBluetoothEntry(std::wstring(id.c_str()), name, category)) {
+        return;  // standalone 0.7.4: the headphones' low-energy side link, not the real disconnect
     }
 
     DI_LOG(L"Bluetooth: disconnected - %s", name.c_str());
