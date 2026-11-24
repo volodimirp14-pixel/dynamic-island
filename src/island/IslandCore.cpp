@@ -7029,44 +7029,50 @@ DWORD WINAPI BluetoothThreadProc(void*) {
     // until shutdown is signaled.
     // Standalone 0.7: battery badge -- re-read every 60 s (and soon after a
     // connect/disconnect). A handful of quick property reads, no busy polling.
-    double nextConnectionCheck = NowSeconds() + 10.0;
-    while (WaitForSingleObject(g_stopEvent, 1000) == WAIT_TIMEOUT) {
-        // Standalone 0.7.1: safety net -- ask Windows directly every 10 s whether
-        // each listed device is still connected (watchers can miss a switch-off).
-        if (NowSeconds() >= nextConnectionCheck) {
-            nextConnectionCheck = NowSeconds() + 10.0;
-            std::vector<std::wstring> ids;
-            {
-                std::lock_guard lock(cacheMutex);
-                ids.assign(connectedIds.begin(), connectedIds.end());
-            }
-            for (const std::wstring& id : ids) {
-                bool stillConnected = true;
+    // Standalone 0.7.1/0.7.2: ask Windows directly whether each listed device is
+    // still connected. Watchers can miss a switch-off, and at start-up the
+    // initial list can include a device Windows still remembers as connected.
+    auto verifyConnected = [&]() {
+        std::vector<std::wstring> ids;
+        {
+            std::lock_guard lock(cacheMutex);
+            ids.assign(connectedIds.begin(), connectedIds.end());
+        }
+        for (const std::wstring& id : ids) {
+            bool stillConnected = true;
+            try {
+                if (auto classic = BluetoothDevice::FromIdAsync(winrt::hstring(id)).get()) {
+                    stillConnected = classic.ConnectionStatus() == BluetoothConnectionStatus::Connected;
+                } else if (auto le = BluetoothLEDevice::FromIdAsync(winrt::hstring(id)).get()) {
+                    stillConnected = le.ConnectionStatus() == BluetoothConnectionStatus::Connected;
+                }
+            } catch (...) {
                 try {
-                    if (auto classic = BluetoothDevice::FromIdAsync(winrt::hstring(id)).get()) {
-                        stillConnected = classic.ConnectionStatus() == BluetoothConnectionStatus::Connected;
-                    } else if (auto le = BluetoothLEDevice::FromIdAsync(winrt::hstring(id)).get()) {
+                    if (auto le = BluetoothLEDevice::FromIdAsync(winrt::hstring(id)).get()) {
                         stillConnected = le.ConnectionStatus() == BluetoothConnectionStatus::Connected;
                     }
                 } catch (...) {
-                    try {
-                        if (auto le = BluetoothLEDevice::FromIdAsync(winrt::hstring(id)).get()) {
-                            stillConnected = le.ConnectionStatus() == BluetoothConnectionStatus::Connected;
-                        }
-                    } catch (...) {
-                    }
-                }
-                if (!stillConnected) {
-                    std::lock_guard lock(cacheMutex);
-                    connectedIds.erase(id);
-                    nextBatteryRefresh.store(NowSeconds());
                 }
             }
+            if (!stillConnected) {
+                std::lock_guard lock(cacheMutex);
+                connectedIds.erase(id);
+                nextBatteryRefresh.store(NowSeconds());
+            }
+        }
+    };
+
+    double nextConnectionCheck = NowSeconds() + 10.0;
+    while (WaitForSingleObject(g_stopEvent, 1000) == WAIT_TIMEOUT) {
+        if (NowSeconds() >= nextConnectionCheck) {
+            nextConnectionCheck = NowSeconds() + 10.0;
+            verifyConnected();
         }
         if (NowSeconds() < nextBatteryRefresh.load()) {
             continue;
         }
         nextBatteryRefresh.store(NowSeconds() + 60.0);
+        verifyConnected();  // never show a device that is not really connected (e.g. right after start)
         std::vector<std::pair<std::wstring, BluetoothTrackedDevice>> connected;
         {
             std::lock_guard lock(cacheMutex);
@@ -14896,20 +14902,20 @@ class Renderer {
         const float tx = badge.right + 14.0f;
         const float rightEdge = hasBattery ? rect.right - 62.0f : rect.right - 14.0f;
 
+        // Standalone 0.7.2: no device names anywhere (the user's choice) -- the
+        // icon says what it is: "Bluetooth" on top, connected / disconnected below.
         mutedBrush_->SetOpacity(0.50f);
-        std::wstring label = std::wstring(Loc(L"Bluetooth")) + L" " + (connected ? Loc(L"Connected") : Loc(L"Disconnected"));
+        const std::wstring label = Loc(L"Bluetooth");
         D2D1_RECT_F labelRect = D2D1::RectF(tx, cy - 16.0f, rightEdge, cy - 1.0f);
         target_->DrawTextW(label.c_str(), static_cast<UINT32>(label.size()),
                            smallTextFormat_.Get(), labelRect, mutedBrush_.Get(),
                            D2D1_DRAW_TEXT_OPTIONS_CLIP);
 
         textBrush_->SetOpacity(0.95f);
-        const std::wstring& name = state.bluetoothDevice.deviceName.empty()
-            ? std::wstring(L"Bluetooth Device")
-            : state.bluetoothDevice.deviceName;
-        D2D1_RECT_F nameRect = D2D1::RectF(tx, cy - 1.0f, rightEdge, cy + 16.0f);
-        target_->DrawTextW(name.c_str(), static_cast<UINT32>(name.size()),
-                           textFormat_.Get(), nameRect, textBrush_.Get(),
+        const std::wstring status = connected ? Loc(L"Connected") : Loc(L"Disconnected");
+        D2D1_RECT_F statusRect = D2D1::RectF(tx, cy - 1.0f, rightEdge, cy + 16.0f);
+        target_->DrawTextW(status.c_str(), static_cast<UINT32>(status.size()),
+                           textFormat_.Get(), statusRect, textBrush_.Get(),
                            D2D1_DRAW_TEXT_OPTIONS_CLIP);
 
         if (hasBattery) {
