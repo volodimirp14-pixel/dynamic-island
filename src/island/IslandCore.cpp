@@ -35,6 +35,7 @@
 #include <audiopolicy.h>
 #include <endpointvolume.h>
 #include <mmdeviceapi.h>
+#include <functiondiscoverykeys_devpkey.h>
 #include <mmreg.h>
 #include <mmsystem.h>
 #include <objbase.h>
@@ -6740,17 +6741,60 @@ int ReadBluetoothDeviceBattery(const std::wstring& id, const std::wstring& name,
     return TryReadBluetoothBatteryPercent(winrt::hstring(id));
 }
 
-// Standalone 0.7.4: not a real accessory connection. AirPods and other
-// headphones keep a separate low-energy entry ("... - Find My", case/fast
-// pairing) that Windows reports as connected while no audio is connected; the
-// real headphone connection is the classic (audio) one.
+// Standalone 0.7.4: headphones and speakers can have a separate low-energy
+// entry (charging case, fast pairing) that Windows reports as connected while
+// no audio is connected; the real headphone connection is the classic one.
+// (0.7.6: AirPods are *named* "... - Find My" even on the classic side, so the
+// name is no longer a reason to drop an entry.)
 bool IsShadowBluetoothEntry(const std::wstring& id, const std::wstring& name, BluetoothDeviceCategory category) {
-    const std::wstring lowerName = ToLowerCopy(name);
-    if (lowerName.find(L"find my") != std::wstring::npos) {
-        return true;
-    }
+    (void)name;
     const bool lowEnergy = ToLowerCopy(id).rfind(L"bluetoothle#", 0) == 0;
     return lowEnergy && (category == BluetoothDeviceCategory::Headphones || category == BluetoothDeviceCategory::Speaker);
+}
+
+bool IsAudioBluetoothCategory(BluetoothDeviceCategory category) {
+    return category == BluetoothDeviceCategory::Headphones || category == BluetoothDeviceCategory::Speaker;
+}
+
+// Standalone 0.7.6: AirPods (and other headphones) keep their Bluetooth link up
+// while they sit in the case, so "connected" is not "in use". They count only
+// while Windows has an active sound device for them -- the same thing that
+// makes them selectable as speakers/headphones in Windows. Matched by name:
+// the endpoint is called e.g. "Headphones (AirPods Pro #2 - Find My)".
+bool HasActiveAudioEndpointFor(const std::wstring& deviceName) {
+    std::wstring key = ToLowerCopy(deviceName);
+    const size_t findMy = key.find(L" - find my");
+    if (findMy != std::wstring::npos) key = key.substr(0, findMy);
+    if (key.empty()) return false;
+
+    ComPtr<IMMDeviceEnumerator> enumerator;
+    if (FAILED(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, IID_PPV_ARGS(&enumerator))) ||
+        !enumerator) {
+        return false;
+    }
+    ComPtr<IMMDeviceCollection> devices;
+    if (FAILED(enumerator->EnumAudioEndpoints(eAll, DEVICE_STATE_ACTIVE, &devices)) || !devices) {
+        return false;
+    }
+    UINT count = 0;
+    devices->GetCount(&count);
+    for (UINT i = 0; i < count; ++i) {
+        ComPtr<IMMDevice> device;
+        ComPtr<IPropertyStore> props;
+        if (FAILED(devices->Item(i, &device)) || !device ||
+            FAILED(device->OpenPropertyStore(STGM_READ, &props)) || !props) {
+            continue;
+        }
+        PROPVARIANT value;
+        PropVariantInit(&value);
+        bool match = false;
+        if (SUCCEEDED(props->GetValue(PKEY_Device_FriendlyName, &value)) && value.vt == VT_LPWSTR && value.pwszVal) {
+            match = ToLowerCopy(value.pwszVal).find(key) != std::wstring::npos;
+        }
+        PropVariantClear(&value);
+        if (match) return true;
+    }
+    return false;
 }
 
 int BluetoothCategoryRank(BluetoothDeviceCategory c) {
@@ -6764,7 +6808,10 @@ int BluetoothCategoryRank(BluetoothDeviceCategory c) {
     }
 }
 
-void RefreshBluetoothBatteries(const std::vector<std::pair<std::wstring, BluetoothTrackedDevice>>& connected) {
+// Returns true while a connected headphone/speaker is not (yet) in use for
+// sound, so the caller looks again soon instead of in a minute.
+bool RefreshBluetoothBatteries(const std::vector<std::pair<std::wstring, BluetoothTrackedDevice>>& connected) {
+    bool audioPending = false;
     const Settings settings = GetSettingsCopy();
     std::vector<BluetoothBatteryItem> items;
     if (settings.bluetoothDashboard) {
@@ -6782,6 +6829,12 @@ void RefreshBluetoothBatteries(const std::vector<std::pair<std::wstring, Bluetoo
         for (const auto& [id, dev] : connected) {
             if (dev.category == BluetoothDeviceCategory::Phone) continue;  // a phone linked for calls, not an accessory
             if (IsShadowBluetoothEntry(id, dev.name, dev.category)) continue;  // standalone 0.7.4
+            if (IsAudioBluetoothCategory(dev.category)) {
+                // Standalone 0.7.6: linked is not enough (AirPods stay linked in the
+                // case); look again in 5 s either way so the badge follows quickly.
+                audioPending = true;
+                if (!HasActiveAudioEndpointFor(dev.name)) continue;
+            }
             bool duplicate = false;
             for (const BluetoothBatteryItem& it : items) duplicate = duplicate || it.name == dev.name;
             if (duplicate) continue;  // dual-mode devices show up in both watchers
@@ -6820,12 +6873,13 @@ void RefreshBluetoothBatteries(const std::vector<std::pair<std::wstring, Bluetoo
         g_layoutDirty = true;
         TriggerNudge();
     }
+    return audioPending;
 }
 
 void HandleBluetoothConnected(
     const winrt::Windows::Devices::Enumeration::DeviceInformation& info,
     std::unordered_map<std::wstring, BluetoothTrackedDevice>& cache,
-    std::mutex& cacheMutex) {
+    std::mutex& cacheMutex, bool audioReady = false) {
     std::wstring name = info.Name().c_str();
     if (name.empty()) {
         return;
@@ -6848,6 +6902,26 @@ void HandleBluetoothConnected(
     }
     // Standalone 0.7.4: no "connected" card for the low-energy side link of headphones.
     if (IsShadowBluetoothEntry(std::wstring(info.Id().c_str()), name, category)) {
+        return;
+    }
+    // Standalone 0.7.6: headphones/speakers announce themselves only once Windows
+    // can play sound through them (AirPods link up while still in the case).
+    // Waits off the watcher's callback thread, then comes back here.
+    if (IsAudioBluetoothCategory(category) && !audioReady) {
+        std::thread([info, &cache, &cacheMutex, name]() {
+            winrt::init_apartment(winrt::apartment_type::multi_threaded);
+            bool ready = false;
+            for (int i = 0; i < 16 && !ready && WaitForSingleObject(g_stopEvent, 0) != WAIT_OBJECT_0; ++i) {
+                ready = HasActiveAudioEndpointFor(name);
+                if (!ready) Sleep(500);  // up to ~8 s
+            }
+            if (ready) {
+                HandleBluetoothConnected(info, cache, cacheMutex, /*audioReady=*/true);
+            } else {
+                DI_LOG(L"[BT] %s linked but no sound device for it; no card.", name.c_str());
+            }
+            winrt::uninit_apartment();
+        }).detach();
         return;
     }
 
@@ -7140,7 +7214,9 @@ DWORD WINAPI BluetoothThreadProc(void*) {
                 if (it != deviceCache.end()) connected.emplace_back(id, it->second);
             }
         }
-        RefreshBluetoothBatteries(connected);
+        if (RefreshBluetoothBatteries(connected)) {
+            nextBatteryRefresh.store(NowSeconds() + 5.0);  // headphones linked but not in use yet: look again soon
+        }
     }
 
     for (auto& watcher : watchers) {
