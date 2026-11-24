@@ -127,5 +127,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     di::settings::StopWatcher();
     di::island::Stop();
     if (control) DestroyWindow(control);
-    return 0;
+    // Like the Windhawk version: end the process here, so no global WinRT/COM
+    // object is torn down by static destructors after its apartment is gone.
+    ExitProcess(0);
 }

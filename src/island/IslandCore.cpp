@@ -101,6 +101,8 @@ namespace {
 // Progress ring percent (0..100, -1 = none), set by `DynamicIsland.exe --progress N`
 // or the Launcher. Replaces the Windhawk value "ProgressPercent" other tools wrote.
 std::atomic<int> g_progressPercent{-1};
+// Thread that called di::island::Start (runs the message loop in main.cpp).
+DWORD g_mainThreadId = 0;
 
 constexpr wchar_t kWindowClass[] = L"DynamicIsland.Island";
 constexpr UINT WM_APP_LAYOUT_CHANGED = WM_APP + 0x442;
@@ -8832,6 +8834,7 @@ void ShowContextMenu(HWND hwnd, POINT screenPoint) {
     AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(themeMenu), L"Theme");
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, 9, L"Настройки (settings.json)");
+    AppendMenuW(menu, MF_STRING, 97, L"Выйти из Dynamic Island");  // standalone: there is no Windhawk to switch it off
 
     SetForegroundWindow(hwnd);
     DwmBackdrop::EnsureBehind(hwnd);
@@ -8899,6 +8902,11 @@ void ShowContextMenu(HWND hwnd, POINT screenPoint) {
             g_pillOpacityOverride.store(-1);
             di::state::SetInt(L"PillOpacityOverride", -1);
             LoadSettings();
+            break;
+        case 97:  // standalone: quit the whole program (main thread runs the shutdown)
+            if (g_mainThreadId) {
+                PostThreadMessageW(g_mainThreadId, WM_QUIT, 0, 0);
+            }
             break;
         case 9: {
             // Opens settings.json in Notepad; changes apply as soon as it is saved
@@ -16851,6 +16859,7 @@ void StopThreads() {
 namespace di::island {
 
 bool Start() {
+    g_mainThreadId = GetCurrentThreadId();
     // Custom fork: island Do Not Disturb survives restarts / reboots.
     g_quietMode = di::state::GetInt(L"QuietMode", 0) != 0;
     g_quietHideAt = 0.0;
