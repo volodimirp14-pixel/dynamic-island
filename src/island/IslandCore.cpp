@@ -96,6 +96,7 @@
 #include "common/Log.h"
 #include "common/Settings.h"
 #include "common/Security.h"
+#include "common/Utf.h"
 
 using Microsoft::WRL::ComPtr;
 using namespace std::chrono_literals;
@@ -3251,6 +3252,136 @@ struct PillClientRect {
     bool valid = false;
 };
 PillClientRect g_pillClientRect;
+
+// ── Standalone 0.10: move the island along X ────────────────────────────────
+// Hold the right mouse button on the island: after a moment it starts to wiggle
+// (like iOS edit mode) and follows the cursor horizontally. Near the screen centre
+// it snaps exactly to the middle. On release the position is saved
+// (Appearance.OffsetX, the same value as in the Launcher).
+namespace IslandMove {
+
+constexpr UINT_PTR kHoldTimerId = 0x4D56;  // "MV"
+constexpr UINT kHoldMs = 450;
+constexpr int kCancelSlopPx = 8;           // moving this far before the hold ends = no move
+
+std::atomic<bool> g_armed{false};          // right button down, waiting for the hold
+std::atomic<bool> g_active{false};         // wiggling and following the cursor
+std::atomic<double> g_activeSince{0.0};
+std::atomic<double> g_snapPauseUntil{0.0}; // wiggle stops briefly when it snaps to the centre
+POINT g_downPt = {};
+int g_startOffset = 0;
+bool g_snapped = false;
+
+bool Active() { return g_active.load(std::memory_order_relaxed); }
+
+// Rotation in degrees for the wiggle (0 when not moving).
+float WiggleDegrees(double now) {
+    if (!Active()) return 0.0f;
+    if (now < g_snapPauseUntil.load(std::memory_order_relaxed)) return 0.0f;
+    const double t = now - g_activeSince.load(std::memory_order_relaxed);
+    const float ramp = static_cast<float>(std::min(1.0, t / 0.15));
+    return ramp * 1.0f * static_cast<float>(std::sin(t * 2.0 * 3.14159265358979 * 6.0));
+}
+
+bool Centered(Position p) { return p == Position::TopCenter || p == Position::BottomCenter; }
+
+void Wake(HWND hwnd) {
+    g_layoutDirty = true;
+    PostMessageW(hwnd, WM_APP_NEW_EVENT, 0, 0);
+}
+
+void Arm(HWND hwnd) {
+    GetCursorPos(&g_downPt);
+    g_armed = true;
+    SetCapture(hwnd);
+    SetTimer(hwnd, kHoldTimerId, kHoldMs, nullptr);
+}
+
+void Begin(HWND hwnd) {
+    KillTimer(hwnd, kHoldTimerId);
+    if (!g_armed.exchange(false)) return;
+    {
+        std::lock_guard lock(g_settingsMutex);
+        g_startOffset = g_settings.offsetX;
+    }
+    g_snapped = false;
+    g_activeSince = NowSeconds();
+    g_active = true;
+    DI_LOG(L"[Move] started at offset %d", g_startOffset);
+    Wake(hwnd);
+}
+
+void Follow(HWND hwnd) {
+    POINT pt;
+    GetCursorPos(&pt);
+    if (!Active()) {
+        if (g_armed.load() && (std::abs(pt.x - g_downPt.x) > kCancelSlopPx || std::abs(pt.y - g_downPt.y) > kCancelSlopPx)) {
+            g_armed = false;  // the user is doing something else
+            KillTimer(hwnd, kHoldTimerId);
+            if (GetCapture() == hwnd) ReleaseCapture();
+        }
+        return;
+    }
+
+    const RECT work = GetAnchorWorkRect();
+    const int workW = work.right - work.left;
+    const float pillW = g_pillClientRect.valid ? (g_pillClientRect.right - g_pillClientRect.left) : 200.0f;
+    int offset = g_startOffset + (pt.x - g_downPt.x);
+
+    Position position;
+    float scale;
+    {
+        std::lock_guard lock(g_settingsMutex);
+        position = g_settings.position;
+        scale = g_settings.sizeScale;
+    }
+    if (Centered(position)) {
+        // Keep the whole pill on the screen.
+        const int limit = std::max(0, static_cast<int>((workW - pillW) * 0.5f) - 8);
+        offset = std::clamp(offset, -limit, limit);
+        // Magnet: close to the middle -> exactly the middle.
+        const int snapPx = static_cast<int>(std::max(16.0f, 28.0f * scale));
+        const bool snap = std::abs(offset) <= snapPx;
+        if (snap) offset = 0;
+        if (snap && !g_snapped) {
+            g_snapPauseUntil = NowSeconds() + 0.25;  // a short "click" into place
+        }
+        g_snapped = snap;
+    } else {
+        offset = std::clamp(offset, -workW, workW);
+    }
+
+    bool changed = false;
+    {
+        std::lock_guard lock(g_settingsMutex);
+        if (g_settings.offsetX != offset) {
+            g_settings.offsetX = offset;
+            changed = true;
+        }
+    }
+    if (changed) Wake(hwnd);
+}
+
+void End(HWND hwnd) {
+    KillTimer(hwnd, kHoldTimerId);
+    g_armed = false;
+    if (!g_active.exchange(false)) return;
+    if (GetCapture() == hwnd) ReleaseCapture();
+    int offset;
+    {
+        std::lock_guard lock(g_settingsMutex);
+        offset = g_settings.offsetX;
+    }
+    std::string error;
+    if (!di::settings::SetValue("Appearance.OffsetX", std::to_string(offset), &error)) {
+        DI_LOG(L"[Move] could not save offset %d: %s", offset, di::Utf8ToWide(error).c_str());
+    } else {
+        DI_LOG(L"[Move] saved offset %d", offset);
+    }
+    Wake(hwnd);
+}
+
+}  // namespace IslandMove
 
 // The island always uses the fixed stage; the backdrop is painted by separate DWM
 // windows (see DwmBackdrop) and does not depend on the window size.
@@ -9865,6 +9996,15 @@ class Renderer {
         hoverScale_ = scale;
 
 
+        // Standalone 0.10: wiggle while the island is being moved.
+        D2D1_MATRIX_3X2_F wiggleOld;
+        target_->GetTransform(&wiggleOld);
+        const float wiggleDeg = IslandMove::WiggleDegrees(now);
+        if (wiggleDeg != 0.0f || IslandMove::Active()) {
+            const D2D1_POINT_2F c = D2D1::Point2F(left + width * 0.5f, top + height * 0.5f);
+            target_->SetTransform(D2D1::Matrix3x2F::Rotation(wiggleDeg, c) * wiggleOld);
+        }
+
         if (width >= 2.0f && height >= 2.0f) {
             if (secondary) {
                 const float gap = 12.0f * settings.sizeScale;
@@ -9901,6 +10041,7 @@ class Renderer {
                          D2D1::RectF(left, top, left + width, top + height), scale, now);
             }
         }
+        target_->SetTransform(wiggleOld);
 
         target_->PopAxisAlignedClip();
         hr = target_->EndDraw();
@@ -15857,6 +15998,7 @@ DWORD WINAPI MouseThreadProc(void*) {
     return 0;
 }
 
+
 LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     static POINT s_touchStart = {0, 0};
     static ULONGLONG s_touchStartTime = 0;
@@ -16057,6 +16199,11 @@ LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             const int xPos = GET_X_LPARAM(lParam);
             const int yPos = GET_Y_LPARAM(lParam);
 
+            if (IslandMove::Active() || IslandMove::g_armed.load()) {
+                IslandMove::Follow(hwnd);
+                if (IslandMove::Active()) return 0;
+            }
+
             if (g_scrubbing.load()) {
                 const MediaContentPoint cp = MediaContentFromClient(xPos, yPos);
                 const float fraction = MediaScrubFractionUnbounded(cp);
@@ -16118,6 +16265,7 @@ LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
         case WM_CAPTURECHANGED:
             if (reinterpret_cast<HWND>(lParam) != hwnd) {
+                IslandMove::End(hwnd);  // capture taken away mid-move: keep where it is
                 if (g_scrubbing.exchange(false)) {
                     g_layoutDirty = true;
                 }
@@ -16361,10 +16509,26 @@ LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             return 0;
         }
 
+        case WM_RBUTTONDOWN:
+            // Standalone 0.10: long press starts moving the island (see IslandMove).
+            IslandMove::Arm(hwnd);
+            return 0;
+
+        case WM_TIMER:
+            if (wParam == IslandMove::kHoldTimerId) {
+                IslandMove::Begin(hwnd);
+                return 0;
+            }
+            break;
+
         case WM_RBUTTONUP:
             // Standalone 0.5: no right-click menu. Everything it offered is in the
             // Launcher (gear), on the island (Do Not Disturb, power) or a hotkey;
             // returning here also keeps DefWindowProc from sending WM_CONTEXTMENU.
+            IslandMove::End(hwnd);
+            if (GetCapture() == hwnd && !g_scrubbing.load() && g_pressedMediaButton.load() == -1) {
+                ReleaseCapture();
+            }
             return 0;
 
         case WM_DPICHANGED:
@@ -17224,7 +17388,8 @@ DWORD WINAPI RenderThreadProc(void*) {
         };
         const bool continuousAnimation =
             mediaAnimating || isTransientPill(primary.kind) ||
-            (secondary && isTransientPill(secondary->kind));
+            (secondary && isTransientPill(secondary->kind)) ||
+            IslandMove::Active();  // standalone 0.10: wiggle
         if (continuousAnimation) {
             needsRender = true;
         }
