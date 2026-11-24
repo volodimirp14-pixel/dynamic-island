@@ -7,5 +7,5 @@
 
 ## Сборка
 GitHub Actions собирает при каждом изменении (вкладка Actions → последний запуск → Artifacts).
-Локально: Visual Studio 2022 Build Tools + Windows SDK, затем
+Локально: Visual Studio Build Tools (2022 или новее) + Windows SDK, затем
 `cmake -S . -B build -A x64` и `cmake --build build --config Release`.
