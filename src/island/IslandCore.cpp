@@ -85,6 +85,7 @@
 #include <winrt/Windows.Devices.Enumeration.h>
 #include <winrt/Windows.Devices.Bluetooth.h>
 #include <winrt/Windows.Devices.Bluetooth.GenericAttributeProfile.h>
+#include <winrt/Windows.Devices.Bluetooth.Advertisement.h>
 #else
 #define DYNAMIC_ISLAND_HAS_BLUETOOTH_WATCHER 0
 #endif
@@ -6724,6 +6725,102 @@ bool LooksLikeSonyPad(const std::wstring& name) {
 
 }  // namespace SonyPad
 
+// ── AirPods / Beats battery (standalone 0.7.7) ────────────────────────────────
+// Apple headphones do not give Windows their battery. They do broadcast it to
+// everyone nearby in a Bluetooth LE advertisement ("proximity pairing", Apple
+// company id 0x004C, message type 0x07) -- the same thing an iPhone shows when
+// the case opens. While AirPods are connected, listen for those messages and
+// take the strongest (= closest) one. Left/right are in 10 % steps, 15 = unknown.
+namespace AirPodsBattery {
+
+struct Reading {
+    int percent = -1;       // the lower of the two buds that report a level
+    bool charging = false;  // a bud is charging
+    short rssi = -128;
+    double at = 0.0;
+};
+
+std::mutex g_lock;
+Reading g_last;
+winrt::Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher g_watcher{nullptr};
+
+bool LooksLikeAppleHeadphones(const std::wstring& name) {
+    const std::wstring n = ToLowerCopy(name);
+    return n.find(L"airpods") != std::wstring::npos || n.find(L"beats") != std::wstring::npos ||
+           n.find(L"powerbeats") != std::wstring::npos;
+}
+
+void OnAdvertisement(winrt::Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementReceivedEventArgs const& args) {
+    try {
+        for (const auto& md : args.Advertisement().ManufacturerData()) {
+            if (md.CompanyId() != 0x004C) continue;
+            const auto buffer = md.Data();
+            if (buffer.Length() < 9) continue;
+            const uint8_t* d = buffer.data();
+            if (d[0] != 0x07 || d[2] != 0x01) continue;  // proximity pairing message
+
+            const bool flip = (d[5] & 0x20) == 0;
+            const int left = flip ? (d[6] >> 4) : (d[6] & 0x0F);
+            const int right = flip ? (d[6] & 0x0F) : (d[6] >> 4);
+            const int chargeBits = d[7] >> 4;
+            const bool chargeL = (chargeBits & (flip ? 0x02 : 0x01)) != 0;
+            const bool chargeR = (chargeBits & (flip ? 0x01 : 0x02)) != 0;
+
+            int percent = -1;
+            if (left <= 10) percent = left * 10;
+            if (right <= 10) percent = percent < 0 ? right * 10 : std::min(percent, right * 10);
+            if (percent < 0) continue;
+
+            const short rssi = args.RawSignalStrengthInDBm();
+            const double now = NowSeconds();
+            std::lock_guard lock(g_lock);
+            // Keep the closest pair: a stronger signal wins; a weaker one only
+            // replaces a reading that is getting old.
+            if (rssi >= g_last.rssi - 3 || now - g_last.at > 8.0) {
+                g_last.percent = std::max(0, std::min(percent, 100));
+                g_last.charging = chargeL || chargeR;
+                g_last.rssi = rssi;
+                g_last.at = now;
+            }
+        }
+    } catch (...) {
+    }
+}
+
+// Listens only while Apple headphones are connected (passive scan, no pairing).
+void SetListening(bool on) {
+    using winrt::Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher;
+    using winrt::Windows::Devices::Bluetooth::Advertisement::BluetoothLEScanningMode;
+    try {
+        if (on && !g_watcher) {
+            g_watcher = BluetoothLEAdvertisementWatcher();
+            g_watcher.ScanningMode(BluetoothLEScanningMode::Passive);
+            g_watcher.Received([](auto const&, auto const& args) { OnAdvertisement(args); });
+            g_watcher.Start();
+            DI_LOG(L"[AirPods] listening for battery broadcasts.");
+        } else if (!on && g_watcher) {
+            g_watcher.Stop();
+            g_watcher = nullptr;
+            std::lock_guard lock(g_lock);
+            g_last = Reading{};
+            DI_LOG(L"[AirPods] stopped listening.");
+        }
+    } catch (const winrt::hresult_error& e) {
+        DI_LOG(L"[AirPods] scanner error 0x%08X", static_cast<unsigned>(e.code().value));
+        g_watcher = nullptr;
+    }
+}
+
+// Fresh reading (last 30 s) or percent -1.
+Reading Get() {
+    std::lock_guard lock(g_lock);
+    Reading r = g_last;
+    if (NowSeconds() - r.at > 30.0) r.percent = -1;
+    return r;
+}
+
+}  // namespace AirPodsBattery
+
 // ── Connected Bluetooth devices with battery (standalone 0.7) ─────────────────
 // Shown top-left on the first tab of the expanded island (clock and player).
 // Battery is re-read every minute and a few seconds after a device connects.
@@ -6737,6 +6834,13 @@ int ReadBluetoothDeviceBattery(const std::wstring& id, const std::wstring& name,
             return r.percent;
         }
         return -1;
+    }
+    if (AirPodsBattery::LooksLikeAppleHeadphones(name)) {  // standalone 0.7.7
+        const AirPodsBattery::Reading r = AirPodsBattery::Get();
+        if (r.percent >= 0) {
+            *charging = r.charging;
+            return r.percent;
+        }
     }
     return TryReadBluetoothBatteryPercent(winrt::hstring(id));
 }
@@ -6826,6 +6930,12 @@ bool RefreshBluetoothBatteries(const std::vector<std::pair<std::wstring, Bluetoo
             }
         }
         size_t sonyNext = 0;
+        // Standalone 0.7.7: listen for AirPods/Beats battery broadcasts while they are connected.
+        bool apple = false;
+        for (const auto& [id, dev] : connected) {
+            apple = apple || (IsAudioBluetoothCategory(dev.category) && AirPodsBattery::LooksLikeAppleHeadphones(dev.name));
+        }
+        AirPodsBattery::SetListening(apple);
         for (const auto& [id, dev] : connected) {
             if (dev.category == BluetoothDeviceCategory::Phone) continue;  // a phone linked for calls, not an accessory
             if (IsShadowBluetoothEntry(id, dev.name, dev.category)) continue;  // standalone 0.7.4
@@ -6850,6 +6960,8 @@ bool RefreshBluetoothBatteries(const std::vector<std::pair<std::wstring, Bluetoo
             if (ab != bb) return ab;  // devices with a known battery first
             return BluetoothCategoryRank(a.category) < BluetoothCategoryRank(b.category);
         });
+    } else {
+        AirPodsBattery::SetListening(false);
     }
     bool changed = false;
     {
@@ -7225,6 +7337,7 @@ DWORD WINAPI BluetoothThreadProc(void*) {
         } catch (...) {
         }
     }
+    AirPodsBattery::SetListening(false);  // standalone 0.7.7
 
     winrt::uninit_apartment();
     return 0;
