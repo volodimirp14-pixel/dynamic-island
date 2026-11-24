@@ -6305,6 +6305,24 @@ DWORD WINAPI NotificationThreadProc(void*) {
 
 #if DYNAMIC_ISLAND_HAS_BLUETOOTH_WATCHER
 
+// Standalone 0.8: every Bluetooth WinRT call has a deadline. A plain .get() can
+// block forever if the radio or a device misbehaves, freezing the Bluetooth
+// thread (and its watchers' bookkeeping) for good. Timeout or error -> fallback.
+template <typename T>
+T AwaitOr(winrt::Windows::Foundation::IAsyncOperation<T> const& op, uint32_t timeoutMs, T fallback) {
+    try {
+        if (op.wait_for(std::chrono::milliseconds(timeoutMs)) == winrt::Windows::Foundation::AsyncStatus::Completed) {
+            return op.GetResults();
+        }
+        op.Cancel();
+    } catch (...) {
+    }
+    return fallback;
+}
+
+constexpr uint32_t kBtLookupTimeoutMs = 2000;  // FromIdAsync / FromBluetoothAddressAsync
+constexpr uint32_t kBtGattTimeoutMs = 3000;    // each GATT step
+
 BluetoothDeviceCategory ClassifyBluetoothDevice(
     const winrt::Windows::Devices::Enumeration::DeviceInformation& info) {
     // 1) Name-based heuristic first — cheap, synchronous, and correct for
@@ -6349,7 +6367,7 @@ BluetoothDeviceCategory ClassifyBluetoothDevice(
     try {
         using winrt::Windows::Devices::Bluetooth::BluetoothDevice;
         using winrt::Windows::Devices::Bluetooth::BluetoothMajorClass;
-        auto device = BluetoothDevice::FromIdAsync(info.Id()).get();
+        auto device = AwaitOr(BluetoothDevice::FromIdAsync(info.Id()), kBtLookupTimeoutMs, BluetoothDevice{nullptr});
         if (device) {
             switch (device.ClassOfDevice().MajorClass()) {
                 case BluetoothMajorClass::Phone:
@@ -6386,29 +6404,35 @@ int TryReadBluetoothBatteryPercentBLE(winrt::hstring const& deviceId) {
     using namespace winrt::Windows::Devices::Bluetooth::GenericAttributeProfile;
 
     try {
-        auto bleDevice = BluetoothLEDevice::FromIdAsync(deviceId).get();
+        auto bleDevice = AwaitOr(BluetoothLEDevice::FromIdAsync(deviceId), kBtLookupTimeoutMs, BluetoothLEDevice{nullptr});
         if (!bleDevice) {
             return -1;
         }
 
-        auto servicesResult = bleDevice.GetGattServicesForUuidAsync(
-            GattServiceUuids::Battery(), BluetoothCacheMode::Uncached).get();
-        if (servicesResult.Status() != GattCommunicationStatus::Success ||
+        // Cached first: Windows usually knows the services already, and an
+        // uncached discovery is a radio round trip (and can wake the device).
+        auto servicesResult = AwaitOr(bleDevice.GetGattServicesForUuidAsync(GattServiceUuids::Battery(),
+                                                                            BluetoothCacheMode::Cached),
+                                      kBtGattTimeoutMs, GattDeviceServicesResult{nullptr});
+        if (!servicesResult || servicesResult.Status() != GattCommunicationStatus::Success ||
             servicesResult.Services().Size() == 0) {
             return -1;
         }
 
         auto service = servicesResult.Services().GetAt(0);
-        auto charsResult = service.GetCharacteristicsForUuidAsync(
-            GattCharacteristicUuids::BatteryLevel(), BluetoothCacheMode::Uncached).get();
-        if (charsResult.Status() != GattCommunicationStatus::Success ||
+        auto charsResult = AwaitOr(service.GetCharacteristicsForUuidAsync(GattCharacteristicUuids::BatteryLevel(),
+                                                                          BluetoothCacheMode::Cached),
+                                   kBtGattTimeoutMs, GattCharacteristicsResult{nullptr});
+        if (!charsResult || charsResult.Status() != GattCommunicationStatus::Success ||
             charsResult.Characteristics().Size() == 0) {
             return -1;
         }
 
         auto characteristic = charsResult.Characteristics().GetAt(0);
-        auto readResult = characteristic.ReadValueAsync(BluetoothCacheMode::Uncached).get();
-        if (readResult.Status() != GattCommunicationStatus::Success) {
+        // The level itself must be fresh.
+        auto readResult = AwaitOr(characteristic.ReadValueAsync(BluetoothCacheMode::Uncached), kBtGattTimeoutMs,
+                                  GattReadResult{nullptr});
+        if (!readResult || readResult.Status() != GattCommunicationStatus::Success) {
             return -1;
         }
 
@@ -6506,7 +6530,7 @@ int TryReadBluetoothBatteryPercent(winrt::hstring const& deviceId) {
     // rather than BLE.
     try {
         using winrt::Windows::Devices::Bluetooth::BluetoothDevice;
-        auto classicDevice = BluetoothDevice::FromIdAsync(deviceId).get();
+        auto classicDevice = AwaitOr(BluetoothDevice::FromIdAsync(deviceId), kBtLookupTimeoutMs, BluetoothDevice{nullptr});
         if (classicDevice) {
             result = TryReadClassicBluetoothBatteryPercent(classicDevice.BluetoothAddress());
         }
@@ -6543,6 +6567,30 @@ struct BluetoothTrackedDevice {
     std::wstring name;
     BluetoothDeviceCategory category;
 };
+
+// Standalone 0.8: everything the Bluetooth watchers and helper threads share.
+// Allocated once and never freed on purpose: WinRT watcher callbacks and the
+// short "wait until it is a sound device" threads can still be running while
+// the island shuts down, so this must outlive BluetoothThreadProc.
+struct BluetoothRegistry {
+    std::mutex mutex;
+    std::unordered_map<std::wstring, BluetoothTrackedDevice> known;  // id -> name/type, kept after disconnect
+    std::set<std::wstring> connected;                                // ids connected right now
+    std::atomic<double> nextBadgeUpdate{0.0};                        // when the badge should be rebuilt
+
+    // Rebuild the badge no later than `delaySeconds` from now.
+    void RequestBadgeUpdate(double delaySeconds) {
+        const double at = NowSeconds() + delaySeconds;
+        double cur = nextBadgeUpdate.load();
+        while (at < cur && !nextBadgeUpdate.compare_exchange_weak(cur, at)) {
+        }
+    }
+};
+
+BluetoothRegistry& Bt() {
+    static BluetoothRegistry* registry = new BluetoothRegistry();
+    return *registry;
+}
 
 // ── Sony gamepads (standalone 0.7) ─────────────────────────────────────────────
 // Windows does not report the battery of a DualSense / DualShock 4: it is only
@@ -6772,6 +6820,7 @@ void OnAdvertisement(winrt::Windows::Devices::Bluetooth::Advertisement::Bluetoot
             if (percent < 0) continue;
 
             const short rssi = args.RawSignalStrengthInDBm();
+            if (rssi < -80) continue;  // another room / someone else's AirPods
             const double now = NowSeconds();
             std::lock_guard lock(g_lock);
             // Keep the closest pair: a stronger signal wins; a weaker one only
@@ -6795,6 +6844,11 @@ void SetListening(bool on) {
         if (on && !g_watcher) {
             g_watcher = BluetoothLEAdvertisementWatcher();
             g_watcher.ScanningMode(BluetoothLEScanningMode::Passive);
+            // Let Windows drop everything that is not from Apple, so the handler
+            // is not called for every advertisement around.
+            winrt::Windows::Devices::Bluetooth::Advertisement::BluetoothLEManufacturerData apple;
+            apple.CompanyId(0x004C);
+            g_watcher.AdvertisementFilter().Advertisement().ManufacturerData().Append(apple);
             g_watcher.Received([](auto const&, auto const& args) { OnAdvertisement(args); });
             g_watcher.Start();
             DI_LOG(L"[AirPods] listening for battery broadcasts.");
@@ -6821,37 +6875,18 @@ Reading Get() {
 
 }  // namespace AirPodsBattery
 
-// ── Connected Bluetooth devices with battery (standalone 0.7) ─────────────────
+// ── Connected Bluetooth devices with battery (standalone 0.7, reworked in 0.8) ──
 // Shown top-left on the first tab of the expanded island (clock and player).
-// Battery is re-read every minute and a few seconds after a device connects.
-int ReadBluetoothDeviceBattery(const std::wstring& id, const std::wstring& name, BluetoothDeviceCategory category,
-                               const std::vector<SonyPad::Reading>& sonyBt, size_t* sonyNext, bool* charging) {
-    *charging = false;
-    if (category == BluetoothDeviceCategory::Gamepad && SonyPad::LooksLikeSonyPad(name)) {
-        if (*sonyNext < sonyBt.size()) {
-            const SonyPad::Reading& r = sonyBt[(*sonyNext)++];
-            *charging = r.charging;
-            return r.percent;
-        }
-        return -1;
-    }
-    if (AirPodsBattery::LooksLikeAppleHeadphones(name)) {  // standalone 0.7.7
-        const AirPodsBattery::Reading r = AirPodsBattery::Get();
-        if (r.percent >= 0) {
-            *charging = r.charging;
-            return r.percent;
-        }
-    }
-    return TryReadBluetoothBatteryPercent(winrt::hstring(id));
-}
+// Cost model: the badge is rebuilt every 60 s (every 5 s while headphones are
+// connected, to follow them in and out of the case). Rebuilding is cheap; the
+// expensive part -- talking to devices -- is cached per device for 60 s.
 
 // Standalone 0.7.4: headphones and speakers can have a separate low-energy
 // entry (charging case, fast pairing) that Windows reports as connected while
 // no audio is connected; the real headphone connection is the classic one.
 // (0.7.6: AirPods are *named* "... - Find My" even on the classic side, so the
-// name is no longer a reason to drop an entry.)
-bool IsShadowBluetoothEntry(const std::wstring& id, const std::wstring& name, BluetoothDeviceCategory category) {
-    (void)name;
+// name is not a reason to drop an entry.)
+bool IsShadowBluetoothEntry(const std::wstring& id, BluetoothDeviceCategory category) {
     const bool lowEnergy = ToLowerCopy(id).rfind(L"bluetoothle#", 0) == 0;
     return lowEnergy && (category == BluetoothDeviceCategory::Headphones || category == BluetoothDeviceCategory::Speaker);
 }
@@ -6860,29 +6895,21 @@ bool IsAudioBluetoothCategory(BluetoothDeviceCategory category) {
     return category == BluetoothDeviceCategory::Headphones || category == BluetoothDeviceCategory::Speaker;
 }
 
-// Standalone 0.7.6: AirPods (and other headphones) keep their Bluetooth link up
-// while they sit in the case, so "connected" is not "in use". They count only
-// while Windows has an active sound device for them -- the same thing that
-// makes them selectable as speakers/headphones in Windows. Matched by name:
-// the endpoint is called e.g. "Headphones (AirPods Pro #2 - Find My)".
-bool HasActiveAudioEndpointFor(const std::wstring& deviceName) {
-    std::wstring key = ToLowerCopy(deviceName);
-    const size_t findMy = key.find(L" - find my");
-    if (findMy != std::wstring::npos) key = key.substr(0, findMy);
-    if (key.empty()) return false;
-
+// Lower-cased names of the sound devices Windows can use right now.
+std::vector<std::wstring> ActiveAudioEndpointNames() {
+    std::vector<std::wstring> names;
     ComPtr<IMMDeviceEnumerator> enumerator;
     if (FAILED(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, IID_PPV_ARGS(&enumerator))) ||
         !enumerator) {
-        return false;
+        return names;
     }
     ComPtr<IMMDeviceCollection> devices;
     if (FAILED(enumerator->EnumAudioEndpoints(eAll, DEVICE_STATE_ACTIVE, &devices)) || !devices) {
-        return false;
+        return names;
     }
     UINT count = 0;
     devices->GetCount(&count);
-    for (UINT i = 0; i < count; ++i) {
+    for (UINT i = 0; i < count && i < 64; ++i) {
         ComPtr<IMMDevice> device;
         ComPtr<IPropertyStore> props;
         if (FAILED(devices->Item(i, &device)) || !device ||
@@ -6891,14 +6918,31 @@ bool HasActiveAudioEndpointFor(const std::wstring& deviceName) {
         }
         PROPVARIANT value;
         PropVariantInit(&value);
-        bool match = false;
         if (SUCCEEDED(props->GetValue(PKEY_Device_FriendlyName, &value)) && value.vt == VT_LPWSTR && value.pwszVal) {
-            match = ToLowerCopy(value.pwszVal).find(key) != std::wstring::npos;
+            names.push_back(ToLowerCopy(value.pwszVal));
         }
         PropVariantClear(&value);
-        if (match) return true;
+    }
+    return names;
+}
+
+// Standalone 0.7.6: AirPods (and other headphones) keep their Bluetooth link up
+// while they sit in the case, so "connected" is not "in use". They count only
+// while Windows has an active sound device for them -- matched by name: the
+// endpoint is called e.g. "Headphones (AirPods Pro #2 - Find My)".
+bool HasAudioEndpointFor(const std::wstring& deviceName, const std::vector<std::wstring>& endpoints) {
+    std::wstring key = ToLowerCopy(deviceName);
+    const size_t findMy = key.find(L" - find my");
+    if (findMy != std::wstring::npos) key.resize(findMy);
+    if (key.empty()) return false;
+    for (const std::wstring& e : endpoints) {
+        if (e.find(key) != std::wstring::npos) return true;
     }
     return false;
+}
+
+bool HasActiveAudioEndpointFor(const std::wstring& deviceName) {
+    return HasAudioEndpointFor(deviceName, ActiveAudioEndpointNames());
 }
 
 int BluetoothCategoryRank(BluetoothDeviceCategory c) {
@@ -6912,57 +6956,125 @@ int BluetoothCategoryRank(BluetoothDeviceCategory c) {
     }
 }
 
-// Returns true while a connected headphone/speaker is not (yet) in use for
-// sound, so the caller looks again soon instead of in a minute.
-bool RefreshBluetoothBatteries(const std::vector<std::pair<std::wstring, BluetoothTrackedDevice>>& connected) {
-    bool audioPending = false;
+// Last battery reading per device (Bluetooth thread only).
+struct BadgeBattery {
+    int percent = -1;
+    bool charging = false;
+    double at = -1e9;
+};
+std::unordered_map<std::wstring, BadgeBattery> g_badgeBattery;
+constexpr double kBadgeBatteryMaxAge = 60.0;
+
+// Rebuilds the badge. Returns true while headphones/speakers are connected, so
+// the caller looks again in 5 s instead of a minute.
+bool RefreshBluetoothBadge(const std::vector<std::pair<std::wstring, BluetoothTrackedDevice>>& connected) {
     const Settings settings = GetSettingsCopy();
     std::vector<BluetoothBatteryItem> items;
-    if (settings.bluetoothDashboard) {
-        bool anySony = false;
+    bool audioConnected = false;
+
+    if (!settings.bluetoothDashboard) {
+        AirPodsBattery::SetListening(false);
+        g_badgeBattery.clear();
+    } else {
+        // 1. Which devices to show.
+        std::vector<std::pair<std::wstring, BluetoothTrackedDevice>> shown;
+        std::vector<std::wstring> endpoints;
+        bool endpointsRead = false;
         for (const auto& [id, dev] : connected) {
-            anySony = anySony || (dev.category == BluetoothDeviceCategory::Gamepad && SonyPad::LooksLikeSonyPad(dev.name));
-        }
-        std::vector<SonyPad::Reading> sonyBt;
-        if (anySony) {
-            for (const SonyPad::Reading& r : SonyPad::ReadAll(settings.sonyPadBattery)) {
-                if (r.bluetooth) sonyBt.push_back(r);
+            if (dev.category == BluetoothDeviceCategory::Phone) continue;  // a phone linked for calls, not an accessory
+            if (IsShadowBluetoothEntry(id, dev.category)) continue;
+            bool duplicate = false;
+            for (const auto& s2 : shown) duplicate = duplicate || s2.second.name == dev.name;
+            if (duplicate) continue;  // dual-mode devices show up in both watchers
+            if (IsAudioBluetoothCategory(dev.category)) {
+                audioConnected = true;
+                if (!endpointsRead) {
+                    endpoints = ActiveAudioEndpointNames();  // once per rebuild
+                    endpointsRead = true;
+                }
+                if (!HasAudioEndpointFor(dev.name, endpoints)) continue;  // linked, but not a sound device (case)
             }
+            shown.emplace_back(id, dev);
         }
-        size_t sonyNext = 0;
-        // Standalone 0.7.7: listen for AirPods/Beats battery broadcasts while they are connected.
+
+        // 2. AirPods/Beats: their battery comes from broadcasts, listened to only while shown.
         bool apple = false;
-        for (const auto& [id, dev] : connected) {
+        for (const auto& [id, dev] : shown) {
             apple = apple || (IsAudioBluetoothCategory(dev.category) && AirPodsBattery::LooksLikeAppleHeadphones(dev.name));
         }
         AirPodsBattery::SetListening(apple);
-        for (const auto& [id, dev] : connected) {
-            if (dev.category == BluetoothDeviceCategory::Phone) continue;  // a phone linked for calls, not an accessory
-            if (IsShadowBluetoothEntry(id, dev.name, dev.category)) continue;  // standalone 0.7.4
-            if (IsAudioBluetoothCategory(dev.category)) {
-                // Standalone 0.7.6: linked is not enough (AirPods stay linked in the
-                // case); look again in 5 s either way so the badge follows quickly.
-                audioPending = true;
-                if (!HasActiveAudioEndpointFor(dev.name)) continue;
+
+        // 3. Sony pads: one HID pass for all of them, at most once a minute.
+        const double now = NowSeconds();
+        auto isSony = [](const BluetoothTrackedDevice& d) {
+            return d.category == BluetoothDeviceCategory::Gamepad && SonyPad::LooksLikeSonyPad(d.name);
+        };
+        bool sonyStale = false;
+        for (const auto& [id, dev] : shown) {
+            if (isSony(dev)) {
+                auto it = g_badgeBattery.find(id);
+                sonyStale = sonyStale || it == g_badgeBattery.end() || now - it->second.at > kBadgeBatteryMaxAge;
             }
-            bool duplicate = false;
-            for (const BluetoothBatteryItem& it : items) duplicate = duplicate || it.name == dev.name;
-            if (duplicate) continue;  // dual-mode devices show up in both watchers
+        }
+        if (sonyStale) {
+            std::vector<SonyPad::Reading> bt;
+            for (const SonyPad::Reading& r : SonyPad::ReadAll(settings.sonyPadBattery)) {
+                if (r.bluetooth) bt.push_back(r);
+            }
+            size_t next = 0;
+            for (const auto& [id, dev] : shown) {
+                if (!isSony(dev)) continue;
+                BadgeBattery b;
+                b.at = now;
+                if (next < bt.size()) {
+                    b.percent = bt[next].percent;
+                    b.charging = bt[next].charging;
+                    ++next;
+                }
+                g_badgeBattery[id] = b;
+            }
+        }
+
+        // 4. Everything else: Windows' own battery value, at most once a minute.
+        for (const auto& [id, dev] : shown) {
             BluetoothBatteryItem item;
             item.name = dev.name;
             item.category = dev.category;
-            item.percent = ReadBluetoothDeviceBattery(id, dev.name, dev.category, sonyBt, &sonyNext, &item.charging);
+            if (isSony(dev)) {
+                const BadgeBattery& b = g_badgeBattery[id];
+                item.percent = b.percent;
+                item.charging = b.charging;
+            } else if (AirPodsBattery::LooksLikeAppleHeadphones(dev.name) && AirPodsBattery::Get().percent >= 0) {
+                const AirPodsBattery::Reading r = AirPodsBattery::Get();
+                item.percent = r.percent;
+                item.charging = r.charging;
+            } else {
+                BadgeBattery& b = g_badgeBattery[id];
+                if (now - b.at > kBadgeBatteryMaxAge) {
+                    b.percent = TryReadBluetoothBatteryPercent(winrt::hstring(id));
+                    b.charging = false;
+                    b.at = now;
+                }
+                item.percent = b.percent;
+            }
             items.push_back(std::move(item));
         }
+
+        // Forget devices that are gone, so the cache cannot grow.
+        for (auto it = g_badgeBattery.begin(); it != g_badgeBattery.end();) {
+            bool stillShown = false;
+            for (const auto& [id, dev] : shown) stillShown = stillShown || id == it->first;
+            it = stillShown ? std::next(it) : g_badgeBattery.erase(it);
+        }
+
         std::stable_sort(items.begin(), items.end(), [](const BluetoothBatteryItem& a, const BluetoothBatteryItem& b) {
             const bool ab = a.percent >= 0;
             const bool bb = b.percent >= 0;
             if (ab != bb) return ab;  // devices with a known battery first
             return BluetoothCategoryRank(a.category) < BluetoothCategoryRank(b.category);
         });
-    } else {
-        AirPodsBattery::SetListening(false);
     }
+
     bool changed = false;
     {
         std::lock_guard lock(g_stateMutex);
@@ -6985,7 +7097,7 @@ bool RefreshBluetoothBatteries(const std::vector<std::pair<std::wstring, Bluetoo
         g_layoutDirty = true;
         TriggerNudge();
     }
-    return audioPending;
+    return audioConnected;
 }
 
 void HandleBluetoothConnected(
@@ -7013,7 +7125,7 @@ void HandleBluetoothConnected(
         return;
     }
     // Standalone 0.7.4: no "connected" card for the low-energy side link of headphones.
-    if (IsShadowBluetoothEntry(std::wstring(info.Id().c_str()), name, category)) {
+    if (IsShadowBluetoothEntry(std::wstring(info.Id().c_str()), category)) {
         return;
     }
     // Standalone 0.7.6: headphones/speakers announce themselves only once Windows
@@ -7120,7 +7232,7 @@ void HandleBluetoothDisconnected(
     if (name.empty()) {
         name = L"Bluetooth Device";
     }
-    if (IsShadowBluetoothEntry(std::wstring(id.c_str()), name, category)) {
+    if (IsShadowBluetoothEntry(std::wstring(id.c_str()), category)) {
         return;  // standalone 0.7.4: the headphones' low-energy side link, not the real disconnect
     }
 
@@ -7151,18 +7263,13 @@ DWORD WINAPI BluetoothThreadProc(void*) {
     using winrt::Windows::Devices::Bluetooth::BluetoothLEDevice;
     using winrt::Windows::Devices::Bluetooth::BluetoothConnectionStatus;
 
-    std::unordered_map<std::wstring, BluetoothTrackedDevice> deviceCache;
-    std::mutex cacheMutex;
     std::vector<DeviceWatcher> watchers;
-    // Standalone 0.7: what is connected right now (deviceCache also remembers
-    // disconnected devices, for their names), and when to re-read batteries.
-    std::set<std::wstring> connectedIds;
-    std::atomic<double> nextBatteryRefresh{NowSeconds() + 2.0};
+    Bt().RequestBadgeUpdate(2.0);
 
-    // Watching the "Connected" selector directly means a device APPEARING
-    // in the watcher (Added) is a connect, and DISAPPEARING (Removed) is a
-    // disconnect — no property polling or IsConnected lookups required.
-    auto startWatcher = [&](winrt::hstring const& selector, const wchar_t* label) {
+    // One watcher per Bluetooth flavour, on the "connected" selector: Added =
+    // connected, Removed = disconnected. Callbacks run on WinRT threads and
+    // only touch Bt() (process lifetime), never this thread's locals.
+    auto startWatcher = [&watchers](winrt::hstring const& selector, const wchar_t* label) {
         try {
             // Standalone 0.7.1: ask for IsConnected so the watcher re-evaluates it;
             // without it a device switched off was never reported as removed.
@@ -7175,58 +7282,59 @@ DWORD WINAPI BluetoothThreadProc(void*) {
                     *enumDone = true;
                 });
 
-            watcher.Added([&deviceCache, &cacheMutex, enumDone, &connectedIds, &nextBatteryRefresh, label](
-                              DeviceWatcher const&, DeviceInformation const& info) {
+            watcher.Added([enumDone, label](DeviceWatcher const&, DeviceInformation const& info) {
+                BluetoothRegistry& bt = Bt();
+                const std::wstring id = info.Id().c_str();
                 {
-                    std::lock_guard lock(cacheMutex);
-                    connectedIds.insert(std::wstring(info.Id().c_str()));
+                    std::lock_guard lock(bt.mutex);
+                    bt.connected.insert(id);
                 }
                 DI_LOG(L"[BT] %s watcher: added %s%s", label, info.Name().c_str(),
                        *enumDone ? L"" : L" (already connected at start)");
                 // Windows needs a moment before it knows the battery of a new connection.
-                nextBatteryRefresh.store(std::min(nextBatteryRefresh.load(), NowSeconds() + 4.0));
-                // Devices reported before EnumerationCompleted are the
-                // watcher's initial snapshot (already connected when the mod
-                // started) — cache them silently so a later disconnect still
-                // resolves a name, but don't pop a card for a connection the
-                // user didn't just cause.
+                bt.RequestBadgeUpdate(4.0);
+                // The initial snapshot (connected before the island started) is only
+                // remembered -- no "connected" card for something the user did not just do.
                 if (!*enumDone) {
-                    std::wstring name = info.Name().c_str();
+                    const std::wstring name = info.Name().c_str();
                     if (!name.empty()) {
-                        std::lock_guard lock(cacheMutex);
-                        deviceCache[std::wstring(info.Id().c_str())] =
-                            BluetoothTrackedDevice{name, ClassifyBluetoothDevice(info)};
+                        const BluetoothDeviceCategory category = ClassifyBluetoothDevice(info);
+                        std::lock_guard lock(bt.mutex);
+                        bt.known[id] = BluetoothTrackedDevice{name, category};
                     }
                     return;
                 }
-                HandleBluetoothConnected(info, deviceCache, cacheMutex);
+                HandleBluetoothConnected(info, bt.known, bt.mutex);
             });
 
-            watcher.Updated([&cacheMutex, &connectedIds, &nextBatteryRefresh, &deviceCache, label](
-                                DeviceWatcher const&, DeviceInformationUpdate const& update) {
+            watcher.Updated([label](DeviceWatcher const&, DeviceInformationUpdate const& update) {
                 auto value = update.Properties().TryLookup(L"System.Devices.Aep.IsConnected");
                 if (!value) return;
                 const auto connected = value.try_as<winrt::Windows::Foundation::IReference<bool>>();
                 if (!connected) return;
-                std::lock_guard lock(cacheMutex);
+                BluetoothRegistry& bt = Bt();
                 const std::wstring id = update.Id().c_str();
-                if (connected.Value()) connectedIds.insert(id);
-                else connectedIds.erase(id);
-                auto known = deviceCache.find(id);
-                DI_LOG(L"[BT] %s watcher: %s is now %s", label,
-                       known != deviceCache.end() ? known->second.name.c_str() : L"(unknown device)",
+                std::wstring name = L"(unknown device)";
+                {
+                    std::lock_guard lock(bt.mutex);
+                    if (connected.Value()) bt.connected.insert(id);
+                    else bt.connected.erase(id);
+                    auto known = bt.known.find(id);
+                    if (known != bt.known.end()) name = known->second.name;
+                }
+                DI_LOG(L"[BT] %s watcher: %s is now %s", label, name.c_str(),
                        connected.Value() ? L"connected" : L"disconnected");
-                nextBatteryRefresh.store(NowSeconds() + (connected.Value() ? 4.0 : 0.0));
+                bt.RequestBadgeUpdate(connected.Value() ? 4.0 : 0.0);
             });
 
-            watcher.Removed([&deviceCache, &cacheMutex, &connectedIds, &nextBatteryRefresh](
-                                DeviceWatcher const&, DeviceInformationUpdate const& update) {
+            watcher.Removed([](DeviceWatcher const&, DeviceInformationUpdate const& update) {
+                BluetoothRegistry& bt = Bt();
                 {
-                    std::lock_guard lock(cacheMutex);
-                    connectedIds.erase(std::wstring(update.Id().c_str()));
+                    std::lock_guard lock(bt.mutex);
+                    bt.connected.erase(std::wstring(update.Id().c_str()));
                 }
-                nextBatteryRefresh.store(NowSeconds());
-                HandleBluetoothDisconnected(update.Id(), deviceCache, cacheMutex);
+                bt.RequestBadgeUpdate(0.0);
+                HandleBluetoothDisconnected(update.Id(), bt.known, bt.mutex);
             });
 
             watcher.Start();
@@ -7244,90 +7352,78 @@ DWORD WINAPI BluetoothThreadProc(void*) {
         BluetoothLEDevice::GetDeviceSelectorFromConnectionStatus(BluetoothConnectionStatus::Connected),
         L"BLE");
 
-    // DeviceWatcher does its work via WinRT callbacks on background threads;
-    // this thread just needs to stay alive to keep the watchers rooted
-    // until shutdown is signaled.
-    // Standalone 0.7: battery badge -- re-read every 60 s (and soon after a
-    // connect/disconnect). A handful of quick property reads, no busy polling.
     // Standalone 0.7.1/0.7.2: ask Windows directly whether each listed device is
     // still connected. Watchers can miss a switch-off, and at start-up the
     // initial list can include a device Windows still remembers as connected.
-    auto verifyConnected = [&]() {
+    auto verifyConnected = []() {
+        BluetoothRegistry& bt = Bt();
         std::vector<std::pair<std::wstring, BluetoothDeviceCategory>> ids;
         {
-            std::lock_guard lock(cacheMutex);
-            for (const std::wstring& id : connectedIds) {
-                auto it = deviceCache.find(id);
-                ids.emplace_back(id, it != deviceCache.end() ? it->second.category : BluetoothDeviceCategory::Generic);
+            std::lock_guard lock(bt.mutex);
+            for (const std::wstring& id : bt.connected) {
+                auto it = bt.known.find(id);
+                ids.emplace_back(id, it != bt.known.end() ? it->second.category : BluetoothDeviceCategory::Generic);
             }
         }
         for (const auto& [id, category] : ids) {
             bool stillConnected = true;
             const wchar_t* why = L"";
-            try {
-                BluetoothDevice classic{nullptr};
-                try {
-                    classic = BluetoothDevice::FromIdAsync(winrt::hstring(id)).get();
-                } catch (...) {
-                }
-                if (classic) {
-                    stillConnected = classic.ConnectionStatus() == BluetoothConnectionStatus::Connected;
-                    why = L"classic link is down";
-                } else if (auto le = BluetoothLEDevice::FromIdAsync(winrt::hstring(id)).get()) {
-                    stillConnected = le.ConnectionStatus() == BluetoothConnectionStatus::Connected;
-                    why = L"LE link is down";
-                    // Standalone 0.7.3: earbuds/headphones keep a low-energy link
-                    // (charging case, fast pairing) while the audio connection is
-                    // off. For audio devices, the classic (audio) link decides.
-                    if (stillConnected && (category == BluetoothDeviceCategory::Headphones ||
-                                           category == BluetoothDeviceCategory::Speaker)) {
-                        try {
-                            auto twin = BluetoothDevice::FromBluetoothAddressAsync(le.BluetoothAddress()).get();
-                            if (twin && twin.ConnectionStatus() != BluetoothConnectionStatus::Connected) {
-                                stillConnected = false;
-                                why = L"only the LE side is up, audio is off";
-                            }
-                        } catch (...) {
-                        }
+            if (auto classic = AwaitOr(BluetoothDevice::FromIdAsync(winrt::hstring(id)), kBtLookupTimeoutMs,
+                                       BluetoothDevice{nullptr})) {
+                stillConnected = classic.ConnectionStatus() == BluetoothConnectionStatus::Connected;
+                why = L"classic link is down";
+            } else if (auto le = AwaitOr(BluetoothLEDevice::FromIdAsync(winrt::hstring(id)), kBtLookupTimeoutMs,
+                                         BluetoothLEDevice{nullptr})) {
+                stillConnected = le.ConnectionStatus() == BluetoothConnectionStatus::Connected;
+                why = L"LE link is down";
+                // Standalone 0.7.3: for audio devices the classic (audio) link decides.
+                if (stillConnected && IsAudioBluetoothCategory(category)) {
+                    auto twin = AwaitOr(BluetoothDevice::FromBluetoothAddressAsync(le.BluetoothAddress()),
+                                        kBtLookupTimeoutMs, BluetoothDevice{nullptr});
+                    if (twin && twin.ConnectionStatus() != BluetoothConnectionStatus::Connected) {
+                        stillConnected = false;
+                        why = L"only the LE side is up, audio is off";
                     }
                 }
-            } catch (...) {
             }
             if (!stillConnected) {
                 std::wstring name;
                 {
-                    std::lock_guard lock(cacheMutex);
-                    connectedIds.erase(id);
-                    auto it = deviceCache.find(id);
-                    if (it != deviceCache.end()) name = it->second.name;
+                    std::lock_guard lock(bt.mutex);
+                    bt.connected.erase(id);
+                    auto it = bt.known.find(id);
+                    if (it != bt.known.end()) name = it->second.name;
                 }
                 DI_LOG(L"[BT] not connected (%s): %s", why, name.c_str());
-                nextBatteryRefresh.store(NowSeconds());
+                bt.RequestBadgeUpdate(0.0);
             }
         }
     };
 
+    // Housekeeping once a second: a connection check every 10 s, the badge when
+    // it is due (events pull it forward). Nothing here spins.
     double nextConnectionCheck = NowSeconds() + 10.0;
     while (WaitForSingleObject(g_stopEvent, 1000) == WAIT_TIMEOUT) {
-        if (NowSeconds() >= nextConnectionCheck) {
-            nextConnectionCheck = NowSeconds() + 10.0;
-            verifyConnected();
+        const double now = NowSeconds();
+        const bool badgeDue = now >= Bt().nextBadgeUpdate.load();
+        if (badgeDue || now >= nextConnectionCheck) {
+            verifyConnected();  // never show a device that is not really connected
+            nextConnectionCheck = now + 10.0;
         }
-        if (NowSeconds() < nextBatteryRefresh.load()) {
+        if (!badgeDue) {
             continue;
         }
-        nextBatteryRefresh.store(NowSeconds() + 60.0);
-        verifyConnected();  // never show a device that is not really connected (e.g. right after start)
+        Bt().nextBadgeUpdate.store(now + 60.0);
         std::vector<std::pair<std::wstring, BluetoothTrackedDevice>> connected;
         {
-            std::lock_guard lock(cacheMutex);
-            for (const std::wstring& id : connectedIds) {
-                auto it = deviceCache.find(id);
-                if (it != deviceCache.end()) connected.emplace_back(id, it->second);
+            std::lock_guard lock(Bt().mutex);
+            for (const std::wstring& id : Bt().connected) {
+                auto it = Bt().known.find(id);
+                if (it != Bt().known.end()) connected.emplace_back(id, it->second);
             }
         }
-        if (RefreshBluetoothBatteries(connected)) {
-            nextBatteryRefresh.store(NowSeconds() + 5.0);  // headphones linked but not in use yet: look again soon
+        if (RefreshBluetoothBadge(connected)) {
+            Bt().RequestBadgeUpdate(5.0);  // headphones: follow them in and out of the case
         }
     }
 
@@ -7337,7 +7433,7 @@ DWORD WINAPI BluetoothThreadProc(void*) {
         } catch (...) {
         }
     }
-    AirPodsBattery::SetListening(false);  // standalone 0.7.7
+    AirPodsBattery::SetListening(false);
 
     winrt::uninit_apartment();
     return 0;
