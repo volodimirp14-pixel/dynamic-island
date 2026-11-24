@@ -2,6 +2,29 @@
 
 Формат: [версия] — дата — что изменилось.
 
+## [standalone 0.2.0-alpha] — 2026-11-24
+Этап 2b: **остров работает без Windhawk.** Функции те же, что в Windhawk-версии 1.4.0-custom.20 (ничего не добавлено и не возвращено из удалённого).
+### Добавлено
+- `src/island/IslandCore.cpp` — код острова из мода. Перенос сделан скриптом `tools/port_core.py` (можно перепроверить): все вызовы Windhawk заменены, логика не менялась.
+  - `Wh_GetIntSetting`/`Wh_GetStringSetting` → `di::settings` (файл `%APPDATA%\DynamicIsland\settings.json`).
+  - `Wh_Get/SetIntValue`, `Wh_Get/SetStringValue` → `di::state` (`state.json`: «Не беспокоить», скрыт/закреплён, прозрачность и форма из меню, бэкап баннеров Telegram/Discord).
+  - `Wh_Log` → `DI_LOG` (`%LOCALAPPDATA%\DynamicIsland\logs\island.log`).
+  - Точка входа Windhawk (tool-mod) → `main.cpp` + `di::island::Start/Stop/ApplySettings/Show/SetProgress`.
+  - Класс окна `DynamicIsland.Island`; пункт меню «Open Windhawk settings» → «Настройки (settings.json)» (открывает файл в Блокноте; на этапе 3 — Launcher); новый пункт «Выйти из Dynamic Island».
+  - `GameDetector`: вместо окон Windhawk «не игрой» считается будущий `DynamicIslandLauncher.exe`.
+  - `ProgressPercent` (кольцо прогресса) сохранено: `DynamicIsland.exe --progress 40` (или команда от Launcher), `-1` скрывает.
+- `src/shared/settings_schema.json` — описание всех 109 настроек (тип, значение по умолчанию, варианты, названия), сделано из YAML мода (`tools/yaml_to_schema.py`). Встроено в exe.
+- Настройки: при отсутствии файла создаётся со значениями по умолчанию; испорченный файл сохраняется как `settings.broken-<время>.json`; неверные значения заменяются значениями по умолчанию; перед перезаписью — `settings.json.bak`; запись атомарная.
+- Изменения `settings.json` применяются сразу после сохранения (слежение за папкой).
+- Команды острову (скрытое окно `DynamicIsland.Control`, `WM_COPYDATA`): `--quit`, `--reload`, `--show`, `--progress N`. Повторный запуск exe не создаёт второй остров, а показывает скрытый.
+- Защита: если запущена Windhawk-версия острова, автономная не стартует и объясняет почему.
+- Корректное завершение при выключении Windows (баннеры Telegram/Discord возвращаются).
+- `--diagnose` — окно проверки из этапа 2a.
+- Сторонняя библиотека: nlohmann/json 3.11.3 (MIT, один заголовок в `third_party/`).
+### Проверено
+- Сборка в GitHub Actions (MSVC 14.52) без ошибок; 15 предупреждений «неиспользуемый параметр» — из исходного кода мода, безвредны.
+- **Запуск острова на Windows ещё не проверен** — ждёт проверки пользователем.
+
 ## [standalone 0.1.0-probe] — 2026-11-24
 Первая сборка автономной версии (этап 2a). Это ещё **не остров**, а проверочная программа.
 ### Добавлено

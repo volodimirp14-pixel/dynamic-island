@@ -5,6 +5,26 @@
 > **Новое направление (2026-11-24):** переход на самостоятельное Windows-приложение без Windhawk (остров + отдельный Launcher). Аудит и план — `STANDALONE_AUDIT.md`. Пока план не согласован и автономная версия не проверена, рабочей остаётся Windhawk-версия, описанная ниже.
 > Последнее обновление: 2026-11-24 — версия `1.4.0-custom.20` (перелистывание вкладок без изменения размера текста: только сдвиг на целые пиксели + прозрачность). До неё: `1.4.0-custom.19` (в список акций добавлены SpaceX и S&P 500). Вкладка «Акции» — с `1.4.0-custom.18`. До неё: `1.4.0-custom.17` (материал Liquid Glass). Предыдущая — `1.4.0-custom.16` (полная очистка: удалены тексты песен, буфер обмена, файловый лоток, Quick Lookup, Caps Lock, анимации переходов плеера, полоса обратного отсчёта, пилюля «Не беспокоить» Windows и все уведомления Windows, кроме Telegram и Discord).
 
+## 0. Автономная версия (новая основа проекта)
+Репозиторий: https://github.com/volodimirp14-pixel/dynamic-island (сборка — GitHub Actions, Windows + MSVC).
+Планы и решения — `STANDALONE_AUDIT.md`. Все новые изменения делаются **здесь**, а не в Windhawk-моде.
+
+| Часть | Где | Что |
+|---|---|---|
+| Точка входа | `src/island/main.cpp` | аргументы (`--quit/--reload/--show/--progress N/--diagnose`), один экземпляр, проверка Windhawk-копии, цикл сообщений |
+| Остров | `src/island/IslandCore.cpp` + `Island.h` | весь код мода (рендер, анимации, источники данных, Telegram/Discord, игры); API `di::island::Start/Stop/ApplySettings/Show/SetProgress` |
+| Настройки | `src/island/settings/` | `settings.json` по схеме `src/shared/settings_schema.json` (встроена в exe), `state.json`, слежение за файлом |
+| Команды | `src/island/app/Control.*`, `src/shared/Ipc.h` | скрытое окно `DynamicIsland.Control`, `WM_COPYDATA` |
+| Лог | `src/island/log/` | `%LOCALAPPDATA%\DynamicIsland\logs\island.log`, 5 МБ × 3 |
+| Проверка | `src/island/diag/` | окно `--diagnose` |
+| Ресурсы | `res/` | манифест (PerMonitorV2, UTF-8, asInvoker), версия, схема |
+| Скрипты переноса | `tools/` | `yaml_to_schema.py`, `port_core.py` |
+
+Файлы пользователя: `%APPDATA%\DynamicIsland\settings.json`, `state.json`; логи — `%LOCALAPPDATA%\DynamicIsland\logs\`.
+Ключи настроек те же, что были в Windhawk (`Telegram.Enabled`, `Themes.BackdropMaterial` …). Новая настройка = запись в `settings_schema.json` + чтение `di::settings::GetInt/GetString` в `LoadSettings()`.
+
+Ниже — описание Windhawk-версии; внутреннее устройство острова (разделы 2–5) в автономной версии то же.
+
 ## 1. Исходный проект
 
 | Параметр | Значение |
