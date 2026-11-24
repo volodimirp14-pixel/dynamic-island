@@ -11677,7 +11677,7 @@ class Renderer {
 
     void DrawIdleDashboard(const SharedState& state, D2D1_RECT_F rect, const Settings& settings,
                            double now) {
-        if settings.gameOverlay {
+        if (settings.gameOverlay) {
             DrawGameOverlay(state, rect, 1.0f);
             return;
         }
