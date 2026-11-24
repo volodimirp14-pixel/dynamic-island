@@ -169,7 +169,7 @@
       "options": [
         {
           "value": "default",
-          "label": "Пилюля (как у Apple)"
+          "label": "Пилюля"
         },
         {
           "value": "w11",
@@ -398,7 +398,7 @@
         },
         {
           "value": "default",
-          "label": "Стандартная (пружина как у Apple)"
+          "label": "Стандартная (пружина)"
         },
         {
           "value": "bouncy",
