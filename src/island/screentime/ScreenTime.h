@@ -3,7 +3,7 @@
 
 #include <vector>
 
-// Standalone 0.13 (Pro): "screen time" -- how long the computer has been switched on
+// Standalone 0.13: "screen time" -- how long the computer has been switched on
 // (awake) today, from local midnight until now. Sleep, hibernation and shut-down
 // periods do not count. No per-program tracking: only on / off.
 //

@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <!-- Dynamic Island icon (trial): flat black pill and a status dot. Transparent background, no shadow, no glow. -->
-  <rect x="8" y="72" width="240" height="112" rx="56" fill="#000000"/>
-  <circle cx="192" cy="128" r="28" fill="#FF453A"/>
-</svg>

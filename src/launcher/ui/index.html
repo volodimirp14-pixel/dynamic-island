@@ -131,25 +131,11 @@ p.note { color: var(--muted); font-size: 13px; margin: 8px 4px 0; max-width: 880
 #modal h3 { margin: 0 0 8px; font-size: 17px; }
 #modal p { color: var(--muted); margin: 0 0 18px; }
 #modal .acts { display: flex; justify-content: flex-end; gap: 8px; }
-/* Standalone 0.11: editions */
-.row.locked .ctl { opacity: .35; pointer-events: none; }
-.row.locked .label b { opacity: .6; }
-.chip, .row .label span.chip { display: inline-block; margin-top: 0; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; padding: 1px 7px; border-radius: 6px; margin-left: 8px;
-  vertical-align: 1px; background: linear-gradient(135deg, #ffd60a, #ff9f0a); color: #1d1d1f !important; }
-.banner.pro { background: var(--accent-soft); color: var(--text); display: flex; align-items: center; gap: 14px; }
-.banner.pro span { flex: 1; }
-.plans { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: 880px; margin-bottom: 26px; }
+/* Standalone 0.14: donations */
+.plans { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: 880px; margin-bottom: 18px; }
 .plan { background: var(--card); border-radius: 14px; box-shadow: var(--shadow); padding: 20px 22px; border: 1px solid var(--line); }
-.plan.best { border: 1.5px solid var(--accent); }
 .plan h3 { margin: 0 0 2px; font-size: 18px; }
 .plan .price { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
-.plan .cur { color: var(--ok); font-size: 12px; font-weight: 600; }
-.cmp { width: 100%; border-collapse: collapse; }
-.cmp td, .cmp th { padding: 10px 18px; border-top: 1px solid var(--line); text-align: left; font-weight: 400; }
-.cmp th { color: var(--muted); font-size: 12.5px; border-top: none; }
-.cmp td.c, .cmp th.c { text-align: center; width: 110px; }
-.seg button:disabled, .palette button:disabled { opacity: .35; cursor: not-allowed; }
-.yes { color: var(--ok); font-weight: 700; } .no { color: var(--faint); }
 </style>
 </head>
 <body>
@@ -185,7 +171,7 @@ const ICONS = {
   behavior: I('<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>'),
   system: I('<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>'),
   about: I('<circle cx="12" cy="12" r="8"/><path d="M12 11v5M12 8h.01"/>'),
-  pro: I('<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/>'),
+  donate: I('<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>'),
 };
 
 const PAGES = [
@@ -197,7 +183,7 @@ const PAGES = [
   { id: 'games', title: 'Игры', groups: ['GameMode'] },
   { id: 'behavior', title: 'Поведение', groups: ['Behavior', 'QuietMode', 'Shortcuts'] },
   { id: 'system', title: 'Система' },
-  { id: 'pro', title: 'Pro' },
+  { id: 'donate', title: 'Поддержать' },
   { id: 'about', title: 'О программе' },
 ];
 
@@ -266,7 +252,7 @@ function activeRule(key) {
   return null;
 }
 
-const state = { edition: 'pro', liveAccent: null, schema: null, byKey: {}, values: {}, running: false, autostart: false, version: '', page: 'home', problem: '', islandFound: true, busy: false };
+const state = { donate: { eu: false, ru: false }, liveAccent: null, schema: null, byKey: {}, values: {}, running: false, autostart: false, version: '', page: 'home', problem: '', islandFound: true, busy: false };
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -303,24 +289,18 @@ function confirmBox(title, text, yes) {
   });
 }
 
-// ── Editions (standalone 0.11) ──
-const isTrial = () => state.edition === 'trial';
-const locked = (s) => isTrial() && !!s.pro;
-const optLocked = (s, val) => isTrial() && (s.proOptions || []).includes(val);
-const PRO_CHIP = '<span class="chip">PRO</span>';
-
 // ── Controls ──
 const isColor = (s) => /(Hex|Color)$/.test(s.key);
 function control(s) {
   const val = state.values[s.key];
   if (s.type === 'bool') return `<button class="toggle ${val ? 'on' : ''}" data-k="${s.key}" data-t="bool" aria-label="${esc(s.name)}"></button>`;
   if (s.type === 'enum' && s.options.some((o) => o.color)) {
-    return `<div class="palette" data-k="${s.key}">${s.options.map((o) => `<button title="${esc(o.label)}" data-v="${esc(o.value)}" class="${o.value === val ? 'on' : ''} ${o.color ? '' : 'custom'}" style="${o.color ? `background:${o.color}` : ''}" ${optLocked(s, o.value) ? 'disabled' : ''}></button>`).join('')}</div>`;
+    return `<div class="palette" data-k="${s.key}">${s.options.map((o) => `<button title="${esc(o.label)}" data-v="${esc(o.value)}" class="${o.value === val ? 'on' : ''} ${o.color ? '' : 'custom'}" style="${o.color ? `background:${o.color}` : ''}"></button>`).join('')}</div>`;
   }
   if (s.type === 'enum') {
     const short = s.options.length <= 3 && s.options.every((o) => o.label.length <= 14);
-    if (short) return `<div class="seg" data-k="${s.key}">${s.options.map((o) => `<button data-v="${esc(o.value)}" class="${o.value === val ? 'on' : ''}" ${optLocked(s, o.value) ? 'disabled' : ''}>${esc(o.label)}${optLocked(s, o.value) ? ' · Pro' : ''}</button>`).join('')}</div>`;
-    return `<select data-k="${s.key}" data-t="enum">${s.options.map((o) => `<option value="${esc(o.value)}" ${o.value === val ? 'selected' : ''} ${optLocked(s, o.value) ? 'disabled' : ''}>${esc(o.label)}${optLocked(s, o.value) ? ' — только в Pro' : ''}</option>`).join('')}</select>`;
+    if (short) return `<div class="seg" data-k="${s.key}">${s.options.map((o) => `<button data-v="${esc(o.value)}" class="${o.value === val ? 'on' : ''}">${esc(o.label)}</button>`).join('')}</div>`;
+    return `<select data-k="${s.key}" data-t="enum">${s.options.map((o) => `<option value="${esc(o.value)}" ${o.value === val ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}</select>`;
   }
   if (s.type === 'int') return `<input class="num" type="number" data-k="${s.key}" data-t="int" value="${val}">`;
   if (isColor(s)) {
@@ -332,12 +312,8 @@ function control(s) {
 }
 function row(s) {
   const rule = activeRule(s.key);
-  const lock = locked(s);
-  const off = !lock && rule && !rule() ? ' off' : '';
-  return `<div class="row${off}${lock ? ' locked' : ''}" data-row="${s.key}"><div class="label"><b>${esc(s.name)}${lock ? PRO_CHIP : ''}</b>${s.description ? `<span>${esc(s.description)}</span>` : ''}</div><div class="ctl">${control(s)}</div></div>`;
-}
-function proBanner(text) {
-  return `<div class="banner pro"><span>${text}</span><button class="btn primary" data-goto="pro">Подробнее о Pro</button></div>`;
+  const off = rule && !rule() ? ' off' : '';
+  return `<div class="row${off}" data-row="${s.key}"><div class="label"><b>${esc(s.name)}</b>${s.description ? `<span>${esc(s.description)}</span>` : ''}</div><div class="ctl">${control(s)}</div></div>`;
 }
 function sectionHtml(title, settings, cls = '') {
   if (!settings.length) return '';
@@ -364,7 +340,6 @@ function homeHtml() {
   let html = '';
   if (!state.islandFound) html += `<div class="banner bad">Рядом с Launcher нет файла DynamicIsland.exe — положите оба файла в одну папку.</div>`;
   if (state.problem) html += `<div class="banner warn">${esc(state.problem)}</div>`;
-  if (isTrial()) html += proBanner('Пробная версия: доступны часы, музыкальный плеер, громкость, яркость, батарея, погода, таймер и индикаторы микрофона и камеры. Остальное — в Pro.');
   html += `<section><div class="card"><div class="hero">
       <div class="big-pill ${run ? 'on' : ''}"></div>
       <div class="state"><b>${run ? 'Остров работает' : 'Остров остановлен'}</b><span>${run ? 'Изменения настроек применяются сразу.' : 'Настройки сохранятся и применятся при запуске.'}</span></div>
@@ -378,7 +353,7 @@ function homeHtml() {
       <button class="btn" data-timer="pause">Пауза</button><button class="btn" data-timer="stop">Стоп</button></div></div></div></section>`;
   }
   const quick = ['Themes.AccentPreset', 'Telegram.Enabled', 'Discord.Enabled', 'GameMode.SmartGameMode', 'Stocks.Enabled', 'Themes.ThemePreset', 'Themes.BackdropMaterial']
-    .map((k) => state.byKey[k]).filter((s) => s && !locked(s));
+    .map((k) => state.byKey[k]).filter(Boolean);
   html += sectionHtml('Быстрые настройки', quick);
   html += `<section><h2>Система</h2><div class="card"><div class="row"><div class="label"><b>Запускать вместе с Windows</b><span>Остров стартует при входе в систему, Launcher при этом не открывается.</span></div>
     <div class="ctl"><button class="toggle ${state.autostart ? 'on' : ''}" data-act="autostart"></button></div></div></div></section>`;
@@ -405,35 +380,15 @@ function aboutHtml() {
   <p class="note">Основано на моде Dynamic Island for Windows (Himanshu, MIT) с собственными изменениями. Работает без Windhawk. Telegram и Discord читаются через уведомления Windows — аккаунты и пароли программе не нужны.</p>`;
 }
 
-// Standalone 0.11: what each edition has, and the (not yet working) purchase.
-const FEATURES = [
-  ['Часы, дата и календарь', true],
-  ['Музыкальный плеер с обложкой, спектром и перемоткой', true],
-  ['Громкость, яркость, батарея', true],
-  ['Темы, размер, положение, анимации, «Не беспокоить»', true],
-  ['Погода', true],
-  ['Индикаторы микрофона и камеры', true],
-  ['Таймер фокусировки', true],
-  ['Сообщения Telegram и Discord в острове', false],
-  ['Bluetooth: подключение устройств и заряд наушников / геймпадов', false],
-  ['Умный игровой режим, игровой оверлей FPS/CPU, монитор железа', false],
-  ['Акции, кольцо прогресса', false],
-  ['Экранное время: сколько компьютер включён сегодня', false],
-  ['Liquid Glass и акрил, цвет акцента, свои цвета и шрифт', false],
-];
-function proHtml() {
-  const pro = !isTrial();
-  let html = `<div class="plans">
-    <div class="plan"><h3>Пробная</h3><div class="price">Бесплатно</div>${pro ? '' : '<div class="cur">● Установлена сейчас</div>'}</div>
-    <div class="plan best"><h3>Pro</h3><div class="price">Все функции</div>
-      ${pro ? '<div class="cur">● Установлена сейчас — все функции открыты</div>'
-            : '<button class="btn primary" data-act="buy" disabled>Купить Pro</button><p class="note" style="margin:10px 0 0">Покупка скоро станет доступна.</p>'}
-    </div></div>`;
-  html += `<section><h2>Сравнение</h2><div class="card"><table class="cmp"><tr><th>Функция</th><th class="c">Пробная</th><th class="c">Pro</th></tr>
-    ${FEATURES.map(([name, trial]) => `<tr><td>${esc(name)}</td><td class="c">${trial ? '<span class="yes">✓</span>' : '<span class="no">—</span>'}</td><td class="c"><span class="yes">✓</span></td></tr>`).join('')}
-    </table></div></section>`;
-  if (!pro) html += `<p class="note">После перехода на Pro все ваши настройки сохранятся: выбранные сейчас значения Pro-функций включатся сами.</p>`;
-  return html;
+// Standalone 0.14: the program is complete and free; support is a donation.
+// The links live in src/common/Links.h; until one is set its button is inactive.
+function donateHtml() {
+  const card = (id, title, text, ok) => `<div class="plan"><h3>${title}</h3><div class="price">${text}</div>
+    <button class="btn primary" data-open="${id}" ${ok ? '' : 'disabled'}>Поддержать</button>
+    ${ok ? '' : '<p class="note" style="margin:10px 0 0">Ссылка скоро появится.</p>'}</div>`;
+  return `<section><div class="card"><div class="row"><div class="label"><b>Dynamic Island бесплатный и со всеми функциями</b>
+      <span>Если программа вам нравится, поддержите разработку донатом — это помогает выпускать обновления.</span></div></div></div></section>
+    <div class="plans">${card('donateEU', 'Донат EU', 'Для Европы и остального мира', state.donate.eu)}${card('donateRU', 'Донат RU', 'Для России и СНГ', state.donate.ru)}</div>`;
 }
 
 function render() {
@@ -445,16 +400,12 @@ function render() {
     html = hits.length ? sectionHtml(`Найдено: ${hits.length}`, hits) : `<div class="empty">Ничего не найдено</div>`;
   } else {
     const p = PAGES.find((x) => x.id === state.page);
-    $('#title').textContent = p.id === 'pro' && isTrial() ? 'Купить Pro' : p.title;
+    $('#title').textContent = p.title;
     if (p.id === 'home') html = homeHtml();
     else if (p.id === 'system') html = systemHtml();
     else if (p.id === 'about') html = aboutHtml();
-    else if (p.id === 'pro') html = proHtml();
-    else {
-      const all = state.schema.settings.filter((x) => p.groups.includes(x.group));
-      const allPro = isTrial() && all.length && all.every((x) => x.pro);
-      html = (allPro ? proBanner('Этот раздел доступен в Pro-версии.') : '') + p.groups.map(groupHtml).join('');
-    }
+    else if (p.id === 'donate') html = donateHtml();
+    else html = p.groups.map(groupHtml).join('');
   }
   const scroll = $('#content').scrollTop;
   $('#content').innerHTML = html;
@@ -492,8 +443,6 @@ document.addEventListener('click', async (e) => {
   if (pal) { const box = pal.parentElement; box.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === pal)); state.values[box.dataset.k] = pal.dataset.v; refreshDimming(); applyAccent(); save(box.dataset.k, pal.dataset.v); return; }
   const segBtn = e.target.closest('.seg button');
   if (segBtn) { const seg = segBtn.parentElement; seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === segBtn)); state.values[seg.dataset.k] = segBtn.dataset.v; refreshDimming(); save(seg.dataset.k, segBtn.dataset.v); return; }
-  const go = e.target.closest('[data-goto]');
-  if (go) { state.page = go.dataset.goto; $('#q').value = ''; $('#content').scrollTop = 0; render(); return; }
   const nav = e.target.closest('nav a');
   if (nav) { state.page = nav.dataset.p; $('#q').value = ''; $('#content').scrollTop = 0; render(); return; }
   const tm = e.target.closest('[data-timer]');
@@ -502,7 +451,6 @@ document.addEventListener('click', async (e) => {
   if (op) { send({ type: 'open', what: op.dataset.open }); return; }
   const act = e.target.closest('[data-act]'); if (!act) return;
   const a = act.dataset.act;
-  if (a === 'buy') { toast('Покупка Pro скоро станет доступна'); return; }  // standalone 0.11: not wired yet
   if (a === 'autostart') { const on = !act.classList.contains('on'); act.classList.toggle('on', on); send({ type: 'autostart', enabled: on }); }
   else if (a === 'reset') { if (await confirmBox('Сбросить все настройки?', 'Все параметры вернутся к значениям по умолчанию. Текущий файл сохранится как settings.json.bak.', 'Сбросить')) send({ type: 'reset' }); }
   else if (a === 'kill') { if (await confirmBox('Завершить остров принудительно?', 'Используйте, только если обычная остановка не помогает. Баннеры Telegram/Discord вернутся при следующем обычном выходе.', 'Завершить')) { state.busy = true; send({ type: 'kill' }); } }
@@ -516,11 +464,11 @@ const ACTION_TEXT = { timer: 'Готово', start: 'Остров запущен
 function onHostMessage(m) {
   switch (m.type) {
     case 'init':
-      state.schema = m.schema; state.values = m.values; state.version = m.version; state.edition = m.edition || 'pro'; state.problem = m.problem; state.settingsPath = m.settingsPath; state.islandFound = m.islandFound;
+      state.schema = m.schema; state.values = m.values; state.version = m.version; state.donate = m.donate || { eu: false, ru: false }; state.problem = m.problem; state.settingsPath = m.settingsPath; state.islandFound = m.islandFound;
       state.byKey = Object.fromEntries(m.schema.settings.map((s) => [s.key, s]));
-      $('#ver').textContent = 'версия ' + m.version + (isTrial() ? ' · пробная' : ' · Pro');
+      $('#ver').textContent = 'версия ' + m.version;
       applyAccent();
-      $('#nav').innerHTML = PAGES.map((p) => `<a data-p="${p.id}">${ICONS[p.id]}<span>${p.id === 'pro' && isTrial() ? 'Купить Pro' : p.title}</span></a>`).join('');
+      $('#nav').innerHTML = PAGES.map((p) => `<a data-p="${p.id}">${ICONS[p.id]}<span>${p.title}</span></a>`).join('');
       render();
       break;
     case 'status': {
@@ -533,7 +481,7 @@ function onHostMessage(m) {
     case 'saved':
       state.values = m.values; applyAccent();
       if (m.ok) { toast('Сохранено'); const r = document.querySelector(`[data-row="${CSS.escape(m.key)}"]`); if (r) { r.classList.remove('flash'); void r.offsetWidth; r.classList.add('flash'); } }
-      else { toast(m.error === 'pro' ? 'Доступно только в Pro' : 'Не сохранено: недопустимое значение', true); render(); }
+      else { toast('Не сохранено: недопустимое значение', true); render(); }
       refreshDimming();
       break;
     case 'reset':

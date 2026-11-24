@@ -1,13 +1,8 @@
 #include <winres.h>
 #include "../src/common/Version.h"
 
-// Standalone 0.12: program icon (vector source: res/icon/*.svg). Pro: green dot,
-// trial: red dot. DI_EDITION_PRO comes from CMake (option DI_PRO).
-#if defined(DI_EDITION_PRO) && DI_EDITION_PRO == 0
-1 ICON "icon/island-trial.ico"
-#else
-1 ICON "icon/island-pro.ico"
-#endif
+// Program icon (vector source: res/icon/island.svg): black pill, green dot.
+1 ICON "icon/island.ico"
 
 1 RT_MANIFEST "DynamicIsland.manifest"
 101 RCDATA "../src/common/settings_schema.json"

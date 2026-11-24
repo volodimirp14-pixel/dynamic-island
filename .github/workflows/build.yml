@@ -8,24 +8,16 @@ on:
 jobs:
   windows:
     runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - edition: Pro
-            pro: "ON"
-          - edition: Trial
-            pro: "OFF"
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure (${{ matrix.edition }})
-        run: cmake -S . -B build -A x64 -DDI_PRO=${{ matrix.pro }}
+      - name: Configure
+        run: cmake -S . -B build -A x64
 
-      - name: Build (${{ matrix.edition }})
+      - name: Build
         run: cmake --build build --config Release -- /m
 
-      - name: Check icon colour (${{ matrix.edition }})
+      - name: Check icon
         shell: pwsh
         run: |
           Add-Type -AssemblyName System.Drawing
@@ -33,15 +25,12 @@ jobs:
             $bmp = [System.Drawing.Icon]::ExtractAssociatedIcon((Resolve-Path $exe)).ToBitmap()
             $p = $bmp.GetPixel([int]($bmp.Width * 186 / 256), [int]($bmp.Height * 128 / 256))
             Write-Host "$exe icon dot: R=$($p.R) G=$($p.G) B=$($p.B) A=$($p.A)"
-            $green = $p.G -gt $p.R + 60
-            $red = $p.R -gt $p.G + 60
-            if ('${{ matrix.edition }}' -eq 'Pro' -and -not $green) { throw "Pro icon dot is not green" }
-            if ('${{ matrix.edition }}' -eq 'Trial' -and -not $red) { throw "Trial icon dot is not red" }
+            if (-not ($p.G -gt $p.R + 60)) { throw "icon dot is not green" }
           }
 
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: DynamicIsland-${{ matrix.edition }}-${{ github.sha }}
+          name: DynamicIsland-${{ github.sha }}
           path: build/Release/*.exe
           if-no-files-found: error

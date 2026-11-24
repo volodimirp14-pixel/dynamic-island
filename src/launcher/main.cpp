@@ -21,10 +21,10 @@
 #include "Autostart.h"
 #include "IslandProcess.h"
 #include "common/IpcClient.h"
+#include "common/Links.h"
 #include "common/Log.h"
 #include "common/Paths.h"
 #include "common/Resources.h"
-#include "common/Edition.h"
 #include "common/Security.h"
 #include "common/Settings.h"
 #include "common/Utf.h"
@@ -75,6 +75,11 @@ void Open(const std::wstring& target, const wchar_t* args = nullptr) {
     ShellExecuteW(g_hwnd, L"open", target.c_str(), args, nullptr, SW_SHOWNORMAL);
 }
 
+// Donation link set in common/Links.h? Only https:// is ever opened.
+bool IsHttpsLink(const wchar_t* url) {
+    return url && _wcsnicmp(url, L"https://", 8) == 0 && wcslen(url) > 8;
+}
+
 // Standalone 0.9: the page may open only these web sites in the browser.
 int g_navigations = 0;
 bool IsAllowedExternalLink(const wchar_t* uri) {
@@ -104,7 +109,7 @@ void HandleMessage(const json& m) {
     if (type == "init") {
         json init = {{"type", "init"},
                      {"version", di::WideToUtf8(di::kAppVersion)},
-                     {"edition", di::kEditionIdA},
+                     {"donate", {{"eu", IsHttpsLink(di::links::kDonateEu)}, {"ru", IsHttpsLink(di::links::kDonateRu)}}},
                      {"schema", json::parse(di::settings::SchemaText())},
                      {"values", json::parse(di::settings::ValuesJson())},
                      {"settingsPath", di::WideToUtf8(di::settings::FilePath())},
@@ -162,6 +167,9 @@ void HandleMessage(const json& m) {
         else if (what == "settingsFolder") Open(di::paths::ConfigDir());
         else if (what == "settingsFile") Open(L"notepad.exe", (L"\"" + di::settings::FilePath() + L"\"").c_str());
         else if (what == "repo") Open(L"https://github.com/volodimirp14-pixel/dynamic-island");
+        // Donation links come only from common/Links.h, never from the page.
+        else if (what == "donateEU" && IsHttpsLink(di::links::kDonateEu)) Open(di::links::kDonateEu);
+        else if (what == "donateRU" && IsHttpsLink(di::links::kDonateRu)) Open(di::links::kDonateRu);
     }
 }
 

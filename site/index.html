@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dynamic Island для Windows — Pro</title>
+<title>Dynamic Island для Windows</title>
 <style>
 :root { --bg: #f3f3f5; --card: #fff; --line: rgba(0,0,0,.08); --text: #1d1d1f; --muted: #6e6e73; --accent: #0a84ff; --ok: #30d158; }
 @media (prefers-color-scheme: dark) { :root { --bg: #1c1c1e; --card: #242426; --line: rgba(255,255,255,.08); --text: #f2f2f5; --muted: #9a9aa2; } }
@@ -39,33 +39,27 @@ footer { color: var(--muted); font-size: 13px; margin-top: 32px; }
 <body>
 <div class="wrap">
   <div class="top"><div class="pill"></div><div><h1>Dynamic Island для Windows</h1><p class="sub">Остров в стиле iPhone вверху экрана: музыка, уведомления, игры, Bluetooth.</p></div></div>
-  <nav><a href="https://github.com/volodimirp14-pixel/dynamic-island">Проект</a><a class="on" href="#pro">Pro</a></nav>
+  <nav><a href="https://github.com/volodimirp14-pixel/dynamic-island">Проект</a><a class="on" href="#donate">Поддержать</a></nav>
 
-  <section id="pro">
+  <section id="donate">
+    <p>Dynamic Island бесплатный и со всеми функциями. Если программа вам нравится, поддержите разработку донатом.</p>
     <div class="plans">
-      <div class="plan"><h2>Пробная</h2><div class="price">Бесплатно</div>
-        <a class="btn ghost" href="https://github.com/volodimirp14-pixel/dynamic-island/actions">Скачать (сборки GitHub Actions)</a></div>
-      <div class="plan best"><h2>Pro</h2><div class="price">Все функции</div>
-        <button class="btn" disabled>Купить Pro</button>
-        <p class="note">Покупка скоро станет доступна.</p></div>
+      <div class="plan"><h2>Донат EU</h2><div class="price">Для Европы и остального мира</div>
+        <a class="btn" id="donate-eu" href="#">Поддержать</a><p class="note" id="donate-eu-note">Ссылка скоро появится.</p></div>
+      <div class="plan"><h2>Донат RU</h2><div class="price">Для России и СНГ</div>
+        <a class="btn" id="donate-ru" href="#">Поддержать</a><p class="note" id="donate-ru-note">Ссылка скоро появится.</p></div>
     </div>
-    <table>
-      <tr><th>Функция</th><th class="c">Пробная</th><th class="c">Pro</th></tr>
-      <tr><td>Часы, дата и календарь</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
-      <tr><td>Музыкальный плеер с обложкой, спектром и перемоткой</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
-      <tr><td>Громкость, яркость, батарея</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
-      <tr><td>Темы, размер, положение, анимации, «Не беспокоить»</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
-      <tr><td>Погода</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
-      <tr><td>Индикаторы микрофона и камеры</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
-      <tr><td>Таймер фокусировки</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
-      <tr><td>Сообщения Telegram и Discord в острове</td><td class="c no">—</td><td class="c yes">✓</td></tr>
-      <tr><td>Bluetooth: подключение устройств и заряд наушников / геймпадов</td><td class="c no">—</td><td class="c yes">✓</td></tr>
-      <tr><td>Умный игровой режим, игровой оверлей FPS/CPU, монитор железа</td><td class="c no">—</td><td class="c yes">✓</td></tr>
-      <tr><td>Акции, кольцо прогресса</td><td class="c no">—</td><td class="c yes">✓</td></tr>
-      <tr><td>Экранное время: сколько компьютер включён сегодня</td><td class="c no">—</td><td class="c yes">✓</td></tr>
-      <tr><td>Liquid Glass и акрил, цвет акцента, свои цвета и шрифт</td><td class="c no">—</td><td class="c yes">✓</td></tr>
-    </table>
+    <p><a class="btn ghost" href="https://github.com/volodimirp14-pixel/dynamic-island/actions">Скачать (сборки GitHub Actions)</a></p>
   </section>
+  <script>
+    // Donation links: paste the addresses here (the same ones as in src/common/Links.h).
+    const DONATE = { eu: '', ru: '' };
+    for (const id of ['eu', 'ru']) {
+      const a = document.getElementById('donate-' + id);
+      if (DONATE[id].startsWith('https://')) { a.href = DONATE[id]; a.target = '_blank'; a.rel = 'noopener'; document.getElementById('donate-' + id + '-note').remove(); }
+      else { a.removeAttribute('href'); a.style.opacity = '.45'; a.style.cursor = 'not-allowed'; }
+    }
+  </script>
   <footer>Аккаунты Telegram и Discord программе не нужны: сообщения читаются из уведомлений Windows.</footer>
 </div>
 </body>

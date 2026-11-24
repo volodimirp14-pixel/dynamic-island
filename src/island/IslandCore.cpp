@@ -654,7 +654,7 @@ struct Settings {
     bool hardwareMonitorModule = true;
     // Custom fork (custom.18): stocks tab.
     bool stocksModule = true;
-    bool screenTimeModule = true;  // standalone 0.13 (Pro): "Screen time" tab
+    bool screenTimeModule = true;  // standalone 0.13: "Screen time" tab
     std::array<std::wstring, kStockSlots> stockSymbols{
         kDefaultStocks[0], kDefaultStocks[1], kDefaultStocks[2],
         kDefaultStocks[3], kDefaultStocks[4], kDefaultStocks[5]};
@@ -8118,7 +8118,7 @@ std::wstring PercentEncodeUtf8(const std::wstring& text) {
     return out;
 }
 
-// Standalone 0.13 (Pro): refreshes today's screen time once a minute (and right
+// Standalone 0.13: refreshes today's screen time once a minute (and right
 // away when the tab is switched on). Reading the event log takes milliseconds.
 DWORD WINAPI ScreenTimeThreadProc(void*) {
     WaitForSingleObject(g_stopEvent, 2000);
@@ -12624,7 +12624,7 @@ class Renderer {
         mutedBrush_->SetOpacity(0.75f);
     }
 
-    // Standalone 0.13 (Pro): "Screen time" -- how long the computer has been on today,
+    // Standalone 0.13: "Screen time" -- how long the computer has been on today,
     // with a 24-hour bar showing when it was on.
     void DrawScreenTimeDashboard(const SharedState& state, D2D1_RECT_F rect, float scale) {
         const di::screentime::Today& st = state.screenTime;

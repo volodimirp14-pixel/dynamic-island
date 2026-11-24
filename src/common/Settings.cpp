@@ -12,7 +12,6 @@
 
 #include <nlohmann/json.hpp>
 #include "common/Resources.h"
-#include "common/Edition.h"
 #include "common/Security.h"
 #include "common/Utf.h"
 #include "common/Paths.h"
@@ -83,8 +82,6 @@ struct Entry {
     Type type = Type::Int;
     json def;
     std::vector<std::string> options;  // enum values
-    bool pro = false;                       // standalone 0.11: Pro edition only
-    std::vector<std::string> proOptions;    // single enum choices that are Pro only
 };
 
 struct Value {
@@ -118,10 +115,7 @@ bool LoadSchema() {
             if (e.type == Type::Enum) {
                 for (const json& o : s.at("options")) e.options.push_back(o.at("value").get<std::string>());
             }
-            e.pro = s.value("pro", false);
-            if (s.contains("proOptions")) {
-                for (const json& o : s.at("proOptions")) e.proOptions.push_back(o.get<std::string>());
-            }
+
             g_schema[s.at("key").get<std::string>()] = std::move(e);
         }
     } catch (const std::exception& ex) {
@@ -169,29 +163,6 @@ json Validate(const std::string& key, const Entry& e, const json* fromFile, bool
     DI_LOG(L"[Settings] %s: invalid value %s, using the default", Utf8ToWide(key).c_str(),
            Utf8ToWide(v.dump()).c_str());
     return e.def;
-}
-
-// Standalone 0.11: is this (clean) value locked in the current edition?
-bool LockedInEdition(const Entry& e, const json& v) {
-    if (kIsPro) return false;
-    if (e.pro) return true;
-    if (e.type == Type::Enum && v.is_string()) {
-        const std::string& s = v.get_ref<const std::string&>();
-        for (const std::string& o : e.proOptions) {
-            if (_stricmp(o.c_str(), s.c_str()) == 0) return true;
-        }
-    }
-    return false;
-}
-
-// What the program actually uses. In the trial a Pro-only feature reads as off
-// (bool -> false) and any other Pro-only value as its default. The user's own
-// choice stays in settings.json, so it is back as soon as Pro is installed.
-json Effective(const Entry& e, const json& v) {
-    if (kIsPro) return v;
-    if (e.pro) return e.type == Type::Bool ? json(false) : e.def;
-    if (LockedInEdition(e, v)) return e.def;
-    return v;
 }
 
 Value ToValue(const Entry& e, const json& v) {
@@ -247,7 +218,7 @@ bool LoadFile(bool* changedOut) {
         const json v = Validate(key, entry, fromFile, &fixed);
         rewrite = rewrite || fixed;
         clean[key] = v;
-        next[Utf8ToWide(key)] = ToValue(entry, Effective(entry, v));
+        next[Utf8ToWide(key)] = ToValue(entry, v);
     }
     for (const auto& [key, v] : values.items()) {
         if (!g_schema.count(key)) {
@@ -345,12 +316,7 @@ std::string SchemaText() {
 
 std::string ValuesJson() {
     std::lock_guard loadLock(g_loadMutex);
-    if (kIsPro) return g_current.dump();
-    json shown = json::object();  // the trial shows what is really in effect
-    for (const auto& [key, entry] : g_schema) {
-        if (g_current.contains(key)) shown[key] = Effective(entry, g_current[key]);
-    }
-    return shown.dump();
+    return g_current.dump();
 }
 
 bool SetValue(const std::string& key, const std::string& valueJson, std::string* error) {
@@ -374,14 +340,10 @@ bool SetValue(const std::string& key, const std::string& valueJson, std::string*
         if (error) *error = "invalid value";
         return false;
     }
-    if (LockedInEdition(it->second, clean)) {
-        if (error) *error = "pro";
-        return false;
-    }
     g_current[key] = clean;
     {
         std::unique_lock lock(g_lock);
-        g_values[Utf8ToWide(key)] = ToValue(it->second, Effective(it->second, clean));
+        g_values[Utf8ToWide(key)] = ToValue(it->second, clean);
     }
     if (!SaveCurrentLocked()) {
         if (error) *error = "cannot write settings.json";
@@ -397,7 +359,7 @@ bool ResetToDefaults() {
     std::unordered_map<std::wstring, Value> next;
     for (const auto& [key, entry] : g_schema) {
         clean[key] = entry.def;
-        next[Utf8ToWide(key)] = ToValue(entry, Effective(entry, entry.def));
+        next[Utf8ToWide(key)] = ToValue(entry, entry.def);
     }
     g_current = clean;
     {
