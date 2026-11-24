@@ -3776,10 +3776,10 @@ HICON getProcessIcon(DWORD pid) {
         }
 
         HICON large = nullptr;
-        HICON small = nullptr;
-        if (ExtractIconExW(path.c_str(), 0, &large, &small, 1) > 0) {
-            if (small) {
-                DestroyIcon(small);
+        HICON smallIcon = nullptr;  // not "small": <rpcndr.h> #defines that to char
+        if (ExtractIconExW(path.c_str(), 0, &large, &smallIcon, 1) > 0) {
+            if (smallIcon) {
+                DestroyIcon(smallIcon);
             }
             if (large) {
                 return large;

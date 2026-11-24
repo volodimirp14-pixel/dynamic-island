@@ -9,7 +9,7 @@ if(NOT MSVC)
   message(FATAL_ERROR "Build with MSVC (Visual Studio 2022 / Build Tools) and the Windows SDK; it provides the C++/WinRT headers.")
 endif()
 
-add_compile_definitions(UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0A00 WINVER=0x0A00)
+add_compile_definitions(UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0A00 WINVER=0x0A00 _CRT_SECURE_NO_WARNINGS)
 add_compile_options(/utf-8 /permissive- /EHsc /W4 /Zc:__cplusplus /bigobj)
 
 # ── DynamicIsland.exe (the island) ──────────────────────────────────────────
