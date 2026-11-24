@@ -96,6 +96,7 @@
 #include "common/Log.h"
 #include "common/Settings.h"
 #include "common/Security.h"
+#include "island/screentime/ScreenTime.h"
 #include "common/Utf.h"
 
 using Microsoft::WRL::ComPtr;
@@ -653,6 +654,7 @@ struct Settings {
     bool hardwareMonitorModule = true;
     // Custom fork (custom.18): stocks tab.
     bool stocksModule = true;
+    bool screenTimeModule = true;  // standalone 0.13 (Pro): "Screen time" tab
     std::array<std::wstring, kStockSlots> stockSymbols{
         kDefaultStocks[0], kDefaultStocks[1], kDefaultStocks[2],
         kDefaultStocks[3], kDefaultStocks[4], kDefaultStocks[5]};
@@ -956,6 +958,7 @@ struct SharedState {
     SystemSnapshot system;
     WeatherSnapshot weather;
     StocksSnapshot stocks;  // custom fork (custom.18)
+    di::screentime::Today screenTime;  // standalone 0.13
     std::array<float, 48> waveform{};
     size_t waveformWrite = 0;
     std::array<float, kSpectrumBands> bands{};  // smoothed 0..1 magnitude per band (low -> high)
@@ -1026,6 +1029,7 @@ HANDLE g_audioThread = nullptr;
 HANDLE g_weatherThread = nullptr;
 // Custom fork (custom.18): stocks tab.
 HANDLE g_stocksThread = nullptr;
+HANDLE g_screenTimeThread = nullptr;  // standalone 0.13
 HANDLE g_stocksWakeEvent = nullptr;          // auto-reset: settings changed / tab shown with old data
 std::atomic<double> g_stocksLastViewed{-1e9};  // NowSeconds() when the stocks tab was last on screen
 std::atomic<bool> g_stocksForceFetch{false};
@@ -1193,6 +1197,7 @@ int ActiveTabCount(const Settings& settings) {
     int count = 2;  // primary (media or clock) + calendar
     if (settings.weather) ++count;
     if (settings.hardwareMonitorModule) ++count;
+    if (settings.screenTimeModule) ++count;  // standalone 0.13
     if (settings.stocksModule) ++count;  // custom fork (custom.18): always the last tab
     return count;
 }
@@ -1343,6 +1348,10 @@ const wchar_t* Loc(const wchar_t* english) {
     static const Row kRows[] = {
         {L"Media", {nullptr, L"Média", L"Multimedia", L"Medien", L"Mídia", L"Media", L"Медиа", L"Medya", L"मीडिया", L"媒体", L"メディア", L"미디어"}},
         {L"Calendar", {nullptr, L"Calendrier", L"Calendario", L"Kalender", L"Calendário", L"Calendario", L"Календарь", L"Takvim", L"कैलेंडर", L"日历", L"カレンダー", L"캘린더"}},
+        {L"Screen time", {nullptr, L"Temps d'écran", L"Tiempo de uso", L"Bildschirmzeit", L"Tempo de tela", L"Tempo di utilizzo", L"Экранное время", L"Ekran süresi", L"स्क्रीन टाइम", L"屏幕使用时间", L"スクリーンタイム", L"스크린 타임"}},
+        {L"On today since", {nullptr, L"Allumé aujourd'hui depuis", L"Encendido hoy desde", L"Heute an seit", L"Ligado hoje desde", L"Acceso oggi dalle", L"Включён сегодня с", L"Bugün açık:", L"आज चालू है", L"今天开机自", L"今日の起動", L"오늘 켜진 시각"}},
+        {L"h", {nullptr, L"h", L"h", L"Std.", L"h", L"h", L"ч", L"sa", L"घं", L"小时", L"時間", L"시간"}},
+        {L"min", {nullptr, L"min", L"min", L"Min.", L"min", L"min", L"мин", L"dk", L"मि", L"分钟", L"分", L"분"}},
         {L"Weather", {nullptr, L"Météo", L"Tiempo", L"Wetter", L"Tempo", L"Meteo", L"Погода", L"Hava", L"मौसम", L"天气", L"天気", L"날씨"}},
         {L"Hardware Monitor", {nullptr, L"Moniteur matériel", L"Monitor de hardware", L"Hardware-Monitor", L"Monitor de hardware", L"Monitor hardware", L"Монитор системы", L"Donanım İzleme", L"हार्डवेयर मॉनिटर", L"硬件监视器", L"ハードウェア モニター", L"하드웨어 모니터"}},
         {L"Bluetooth", {nullptr, L"Bluetooth", L"Bluetooth", L"Bluetooth", L"Bluetooth", L"Bluetooth", L"Bluetooth", L"Bluetooth", L"ब्लूटूथ", L"蓝牙", L"Bluetooth", L"블루투스"}},
@@ -2502,6 +2511,7 @@ void LoadSettings() {
     next.hardwareMonitorModule = di::settings::GetInt(L"Modules.HardwareMonitorModule") != 0;
     // Custom fork (custom.18): stocks tab.
     next.stocksModule = di::settings::GetInt(L"Stocks.Enabled") != 0;
+    next.screenTimeModule = di::settings::GetInt(L"Modules.ScreenTime") != 0;
     for (int i = 0; i < kStockSlots; ++i) {
         wchar_t key[32];
         swprintf_s(key, L"Stocks.Stock%d", i + 1);
@@ -8108,6 +8118,34 @@ std::wstring PercentEncodeUtf8(const std::wstring& text) {
     return out;
 }
 
+// Standalone 0.13 (Pro): refreshes today's screen time once a minute (and right
+// away when the tab is switched on). Reading the event log takes milliseconds.
+DWORD WINAPI ScreenTimeThreadProc(void*) {
+    WaitForSingleObject(g_stopEvent, 2000);
+    bool wasEnabled = false;
+    ULONGLONG lastRun = 0;
+    while (WaitForSingleObject(g_stopEvent, 0) == WAIT_TIMEOUT) {
+        bool enabled;
+        {
+            std::lock_guard lock(g_settingsMutex);
+            enabled = g_settings.screenTimeModule;
+        }
+        const ULONGLONG nowTick = GetTickCount64();
+        if (enabled && (!wasEnabled || nowTick - lastRun >= 60000)) {
+            di::screentime::Today today = di::screentime::Compute();
+            {
+                std::lock_guard lock(g_stateMutex);
+                g_state.screenTime = std::move(today);
+            }
+            g_layoutDirty = true;
+            lastRun = nowTick;
+        }
+        wasEnabled = enabled;
+        WaitForSingleObject(g_stopEvent, 5000);
+    }
+    return 0;
+}
+
 DWORD WINAPI WeatherThreadProc(void*) {
     // Initial delay to avoid slowing down startup
     WaitForSingleObject(g_stopEvent, 3000);
@@ -10436,6 +10474,8 @@ class Renderer {
         calGridFormat_ = nullptr;
         timeDashboardFormat_ = nullptr;
         dateDashboardFormat_ = nullptr;
+        screenTimeBigFormat_ = nullptr;
+        screenTimeSmallFormat_ = nullptr;
 
         const wchar_t* defaultDisplay = L"Segoe UI Variable Display";
         const wchar_t* defaultSmall = L"Segoe UI Variable Small";
@@ -10490,6 +10530,12 @@ class Renderer {
         createFormat(mainFamily, defaultDisplay,
                      DWRITE_FONT_WEIGHT_SEMI_BOLD, DWRITE_FONT_STYLE_NORMAL,
                      DWRITE_FONT_STRETCH_NORMAL, 16.0f * ts, dateDashboardFormat_);
+        createFormat(mainFamily, defaultDisplay,
+                     DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL,
+                     DWRITE_FONT_STRETCH_NORMAL, 36.0f * ts, screenTimeBigFormat_);
+        createFormat(smallFamily, defaultSmall,
+                     DWRITE_FONT_WEIGHT_SEMI_BOLD, DWRITE_FONT_STYLE_NORMAL,
+                     DWRITE_FONT_STRETCH_NORMAL, 11.5f * ts, screenTimeSmallFormat_);
 
         usingFluentIcons_ = false;
         ComPtr<IDWriteFontCollection> sysFonts;
@@ -10584,6 +10630,12 @@ class Renderer {
             dateDashboardFormat_->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
             dateDashboardFormat_->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
             dateDashboardFormat_->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+        }
+        for (IDWriteTextFormat* f : {screenTimeBigFormat_.Get(), screenTimeSmallFormat_.Get()}) {
+            if (!f) continue;
+            f->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+            f->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+            f->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
         }
         if (iconFormat_) {
             iconFormat_->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
@@ -12572,6 +12624,86 @@ class Renderer {
         mutedBrush_->SetOpacity(0.75f);
     }
 
+    // Standalone 0.13 (Pro): "Screen time" -- how long the computer has been on today,
+    // with a 24-hour bar showing when it was on.
+    void DrawScreenTimeDashboard(const SharedState& state, D2D1_RECT_F rect, float scale) {
+        const di::screentime::Today& st = state.screenTime;
+        IDWriteTextFormat* bigFmt = screenTimeBigFormat_ ? screenTimeBigFormat_.Get() : hugeTextFormat_.Get();
+        IDWriteTextFormat* smallFmt = screenTimeSmallFormat_ ? screenTimeSmallFormat_.Get() : smallTextFormat_.Get();
+        if (!bigFmt || !smallFmt) return;
+        auto text = [&](const std::wstring& t, IDWriteTextFormat* f, D2D1_RECT_F r, ID2D1Brush* b) {
+            target_->DrawTextW(t.c_str(), static_cast<UINT32>(t.size()), f, r, b, D2D1_DRAW_TEXT_OPTIONS_NONE);
+        };
+        const float top = rect.top;
+
+        // Title
+        mutedBrush_->SetOpacity(0.85f);
+        text(Loc(L"Screen time"), smallFmt, D2D1::RectF(rect.left, top + 14.0f * scale, rect.right, top + 32.0f * scale),
+             mutedBrush_.Get());
+
+        // Total
+        std::wstring total = L"—";
+        if (st.valid) {
+            const long long minutes = st.seconds / 60;
+            const long long h = minutes / 60;
+            const long long m = minutes % 60;
+            total = h > 0 ? std::to_wstring(h) + L" " + Loc(L"h") + L" " + std::to_wstring(m) + L" " + Loc(L"min")
+                          : std::to_wstring(m) + L" " + Loc(L"min");
+        }
+        textBrush_->SetOpacity(0.98f);
+        text(total, bigFmt, D2D1::RectF(rect.left, top + 34.0f * scale, rect.right, top + 82.0f * scale), textBrush_.Get());
+
+        // Since
+        if (st.valid && st.firstStartMinute >= 0) {
+            wchar_t since[64];
+            swprintf_s(since, L"%s %02d:%02d", Loc(L"On today since"), st.firstStartMinute / 60, st.firstStartMinute % 60);
+            mutedBrush_->SetOpacity(0.80f);
+            text(since, smallFmt, D2D1::RectF(rect.left, top + 84.0f * scale, rect.right, top + 102.0f * scale),
+                 mutedBrush_.Get());
+        }
+
+        // 24-hour bar: grey track, accent where the computer was on, a tick at "now".
+        const float barLeft = rect.left + 32.0f * scale;
+        const float barRight = rect.right - 32.0f * scale;
+        const float barW = barRight - barLeft;
+        const float barY = top + 122.0f * scale;
+        const float barH = 8.0f * scale;
+        const float rad = barH * 0.5f;
+        if (ID2D1SolidColorBrush* track = AcquireBrush(WithAlpha(material_.textPrimary, 0.14f * settingsOpacity_))) {
+            target_->FillRoundedRectangle(
+                D2D1::RoundedRect(D2D1::RectF(barLeft, barY, barRight, barY + barH), rad, rad), track);
+        }
+        D2D1_COLOR_F accent = accentBrush_ ? accentBrush_->GetColor() : D2D1::ColorF(0x30D158);
+        accent.a = 0.95f * settingsOpacity_;
+        if (ID2D1SolidColorBrush* fill = AcquireBrush(accent)) {
+            for (const di::screentime::Segment& seg : st.segments) {
+                const float x0 = barLeft + barW * static_cast<float>(std::clamp(seg.from, 0.0, 1.0));
+                float x1 = barLeft + barW * static_cast<float>(std::clamp(seg.to, 0.0, 1.0));
+                if (x1 - x0 < barH) x1 = std::min(barRight, x0 + barH);  // very short periods stay visible
+                target_->FillRoundedRectangle(D2D1::RoundedRect(D2D1::RectF(x0, barY, x1, barY + barH), rad, rad),
+                                              fill);
+            }
+        }
+        if (st.valid) {
+            const float nx = barLeft + barW * static_cast<float>(std::clamp(st.nowFraction, 0.0, 1.0));
+            if (ID2D1SolidColorBrush* tick = AcquireBrush(D2D1::ColorF(1.0f, 1.0f, 1.0f, 0.9f * settingsOpacity_))) {
+                target_->FillRoundedRectangle(
+                    D2D1::RoundedRect(D2D1::RectF(nx - 1.0f, barY - 3.0f * scale, nx + 1.0f, barY + barH + 3.0f * scale),
+                                      1.0f, 1.0f),
+                    tick);
+            }
+        }
+        // Hour labels
+        mutedBrush_->SetOpacity(0.6f);
+        static const wchar_t* const kHours[] = {L"0", L"6", L"12", L"18", L"24"};
+        for (int i = 0; i < 5; ++i) {
+            const float x = barLeft + barW * (i / 4.0f);
+            text(kHours[i], smallFmt, D2D1::RectF(x - 20.0f, barY + barH + 4.0f * scale, x + 20.0f, barY + barH + 20.0f * scale),
+                 mutedBrush_.Get());
+        }
+        mutedBrush_->SetOpacity(0.75f);
+    }
+
     void DrawTimeDashboard(const SharedState& state, D2D1_RECT_F rect, const Settings& settings, double now, float scale, SYSTEMTIME& local) {
         (void)now;
 
@@ -12875,6 +13007,7 @@ class Renderer {
             activeTabs.push_back(0); // Calendar
             if (settings.weather) activeTabs.push_back(1);
             if (settings.hardwareMonitorModule) activeTabs.push_back(2);
+            if (settings.screenTimeModule) activeTabs.push_back(5);  // standalone 0.13
             if (settings.stocksModule) activeTabs.push_back(4);  // custom fork (custom.18)
 
             int maxTabs = static_cast<int>(activeTabs.size());
@@ -12896,6 +13029,7 @@ class Renderer {
                 else if (activeTabId == 1) DrawWeatherDashboard(state, fullRect, settings, now, scale, hasWeather, wIcon, wText);
                 else if (activeTabId == 2) DrawHardwareMonitorDashboard(state, fullRect, settings, scale);
                 else if (activeTabId == 4) DrawStocksDashboard(state, fullRect, settings, now, scale);
+                else if (activeTabId == 5) DrawScreenTimeDashboard(state, fullRect, scale);
                 // Custom fork, Feature 3: the Do Not Disturb toggle is part of the
                 // first (Time) tab, so it slides in and out together with it
                 // instead of popping in after the tab animation has finished.
@@ -13530,6 +13664,7 @@ class Renderer {
             activeTabs.push_back(1); // Calendar
             if (settings.weather) activeTabs.push_back(2);
             if (settings.hardwareMonitorModule) activeTabs.push_back(3);
+            if (settings.screenTimeModule) activeTabs.push_back(5);  // standalone 0.13
             if (settings.stocksModule) activeTabs.push_back(4);  // custom fork (custom.18)
 
             // Same settings object as the list above, so the index can't be
@@ -13730,6 +13865,8 @@ class Renderer {
                 DrawHardwareMonitorDashboard(state, rect, settings, 1.0f);
             } else if (activeTabId == 4) {
                 DrawStocksDashboard(state, rect, settings, now, 1.0f);
+            } else if (activeTabId == 5) {
+                DrawScreenTimeDashboard(state, rect, 1.0f);
             }
             };  // end drawTabContent
 
@@ -15755,6 +15892,8 @@ class Renderer {
     ComPtr<IDWriteTextFormat> calDayLargeFormat_;
     ComPtr<IDWriteTextFormat> calGridFormat_;
     ComPtr<IDWriteTextFormat> timeDashboardFormat_;
+    ComPtr<IDWriteTextFormat> screenTimeBigFormat_;    // standalone 0.13
+    ComPtr<IDWriteTextFormat> screenTimeSmallFormat_;
     ComPtr<IDWriteTextFormat> dateDashboardFormat_;
     ComPtr<ID2D1SolidColorBrush> accentBrush_;
     ComPtr<ID2D1SolidColorBrush> redBrush_;
@@ -17796,6 +17935,7 @@ bool StartThreads() {
     g_weatherThread = CreateThread(nullptr, 0, WeatherThreadProc, nullptr, 0, nullptr);
     g_stocksWakeEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);  // custom fork (custom.18)
     g_stocksThread = CreateThread(nullptr, 0, StocksThreadProc, nullptr, 0, nullptr);
+    g_screenTimeThread = CreateThread(nullptr, 0, ScreenTimeThreadProc, nullptr, 0, nullptr);
     g_mouseThread = CreateThread(nullptr, 0, MouseThreadProc, nullptr, 0, &g_mouseThreadId);
 #if DYNAMIC_ISLAND_HAS_USER_NOTIFICATION_LISTENER
     g_notificationThread = CreateThread(nullptr, 0, NotificationThreadProc, nullptr, 0, nullptr);
@@ -17817,7 +17957,7 @@ void StopThreads() {
         SetEvent(g_stopEvent);
     }
 
-    HANDLE handles[] = {g_renderThread, g_mediaThread, g_audioThread, g_weatherThread, g_stocksThread, g_notificationThread, g_mouseThread, g_bluetoothThread};
+    HANDLE handles[] = {g_renderThread, g_mediaThread, g_audioThread, g_weatherThread, g_stocksThread, g_notificationThread, g_mouseThread, g_bluetoothThread, g_screenTimeThread};
     for (HANDLE handle : handles) {
         if (handle) {
             WaitForSingleObject(handle, 3000);
@@ -17830,6 +17970,7 @@ void StopThreads() {
     g_audioThread = nullptr;
     g_weatherThread = nullptr;
     g_stocksThread = nullptr;
+    g_screenTimeThread = nullptr;
     g_notificationThread = nullptr;
     g_mouseThread = nullptr;
     g_mouseThreadId = 0;

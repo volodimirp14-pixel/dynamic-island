@@ -956,6 +956,15 @@
       "pro": true
     },
     {
+      "key": "Modules.ScreenTime",
+      "group": "Modules",
+      "name": "Вкладка «Экранное время»",
+      "description": "Сколько компьютер включён сегодня — с полуночи до текущего момента, без сна и выключений, и шкала дня. Без учёта программ.",
+      "type": "bool",
+      "default": true,
+      "pro": true
+    },
+    {
       "key": "Modules.GameOverlay",
       "group": "Modules",
       "name": "Игровой оверлей",

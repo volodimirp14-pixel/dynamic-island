@@ -46,13 +46,14 @@ add_executable(DynamicIsland WIN32
   src/island/app/SingleInstance.cpp
   src/island/diag/Diagnostics.cpp
   src/island/settings/SettingsWatcher.cpp
+  src/island/screentime/ScreenTime.cpp
   res/island.rc
 )
 target_link_options(DynamicIsland PRIVATE /MANIFEST:NO)  # our own manifest comes from island.rc
 # Same libraries the Windhawk mod linked (@compilerOptions), plus WinRT.
 target_link_libraries(DynamicIsland PRIVATE di_common hid
   windowsapp runtimeobject oleaut32 shcore d2d1 dwrite dwmapi gdi32
-  windowscodecs setupapi winhttp pdh winmm)
+  windowscodecs setupapi winhttp pdh winmm wevtapi)
 
 # ── DynamicIslandLauncher.exe (settings and control window, WebView2) ────────
 # WebView2 SDK from NuGet (headers + static loader; the runtime is part of Windows 10/11).
