@@ -24,6 +24,17 @@ std::wstring GetString(const wchar_t* key);
 std::wstring FilePath();
 // Set by Init/Reload when the file had to be repaired, for the Launcher to show.
 std::wstring LastProblem();
+
+// ── For the Launcher ──
+// The embedded schema (UTF-8 JSON text).
+std::string SchemaText();
+// Current effective values as a JSON object {"Group.Key": value, ...}.
+std::string ValuesJson();
+// Validates `valueJson` against the schema and saves settings.json.
+// On rejection returns false and a short reason in `error`.
+bool SetValue(const std::string& key, const std::string& valueJson, std::string* error);
+// Writes every setting's default (the old file is kept as settings.json.bak).
+bool ResetToDefaults();
 }  // namespace di::settings
 
 namespace di::state {

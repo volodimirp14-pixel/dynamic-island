@@ -1,8 +1,8 @@
 #include <winres.h>
-#include "../src/shared/Version.h"
+#include "../src/common/Version.h"
 
 1 RT_MANIFEST "DynamicIsland.manifest"
-101 RCDATA "../src/shared/settings_schema.json"
+101 RCDATA "../src/common/settings_schema.json"
 
 VS_VERSION_INFO VERSIONINFO
  FILEVERSION DI_VERSION_MAJOR,DI_VERSION_MINOR,DI_VERSION_PATCH,0

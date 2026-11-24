@@ -1,4 +1,4 @@
-#include "Paths.h"
+#include "common/Paths.h"
 
 #include <windows.h>
 #include <shlobj.h>

@@ -17,7 +17,4 @@ struct Handlers {
 
 // Creates the window on the calling thread (which must run a message loop).
 HWND Create(const Handlers& handlers);
-
-// Client side. Returns false when no island is running or it did not answer.
-bool Send(const std::wstring& command);
 }  // namespace di::control

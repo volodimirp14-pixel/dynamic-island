@@ -3,27 +3,27 @@
   "groups": [
     {
       "key": "Appearance",
-      "name": "Appearance & Position"
+      "name": "Положение и размер"
     },
     {
       "key": "Behavior",
-      "name": "Behavior & Visibility"
+      "name": "Поведение и видимость"
     },
     {
       "key": "Animations",
-      "name": "Animations & Performance"
+      "name": "Анимации и плавность"
     },
     {
       "key": "Themes",
-      "name": "Colors & Theming"
+      "name": "Цвета и материал"
     },
     {
       "key": "Indicators",
-      "name": "Privacy Indicators"
+      "name": "Индикаторы микрофона и камеры"
     },
     {
       "key": "Modules",
-      "name": "Modules & Features"
+      "name": "Модули"
     },
     {
       "key": "Telegram",
@@ -35,52 +35,51 @@
     },
     {
       "key": "Stocks",
-      "name": "Stocks"
+      "name": "Акции"
     },
     {
       "key": "GameMode",
-      "name": "Game mode"
+      "name": "Игровой режим"
     },
     {
       "key": "QuietMode",
-      "name": "Do Not Disturb (island)"
+      "name": "Не беспокоить"
     },
     {
       "key": "Shortcuts",
-      "name": "Shortcuts & Hotkeys"
+      "name": "Горячие клавиши"
     }
   ],
   "settings": [
     {
       "key": "Appearance.Position",
       "group": "Appearance",
-      "name": "Position",
-      "description": "Where the island should appear on your screen.",
+      "name": "Положение на экране",
       "type": "enum",
       "options": [
         {
           "value": "top-center",
-          "label": "Top Center"
+          "label": "Сверху по центру"
         },
         {
           "value": "top-left",
-          "label": "Top Left"
+          "label": "Сверху слева"
         },
         {
           "value": "top-right",
-          "label": "Top Right"
+          "label": "Сверху справа"
         },
         {
           "value": "bottom-center",
-          "label": "Bottom Center"
+          "label": "Снизу по центру"
         },
         {
           "value": "bottom-left",
-          "label": "Bottom Left"
+          "label": "Снизу слева"
         },
         {
           "value": "bottom-right",
-          "label": "Bottom Right"
+          "label": "Снизу справа"
         }
       ],
       "default": "top-center"
@@ -88,37 +87,37 @@
     {
       "key": "Appearance.TargetMonitor",
       "group": "Appearance",
-      "name": "Target Monitor",
-      "description": "Select the screen to display the island. If a display isn't found, it safely falls back to the Primary Monitor.(Extra Displays are given even if they don't exist because windhawk settings are static)",
+      "name": "Монитор",
+      "description": "Если выбранного монитора нет, остров появится на основном.",
       "type": "enum",
       "options": [
         {
           "value": "primary",
-          "label": "Primary Monitor"
+          "label": "Основной монитор"
         },
         {
           "value": "1",
-          "label": "Display 1"
+          "label": "Дисплей 1"
         },
         {
           "value": "2",
-          "label": "Display 2"
+          "label": "Дисплей 2"
         },
         {
           "value": "3",
-          "label": "Display 3"
+          "label": "Дисплей 3"
         },
         {
           "value": "4",
-          "label": "Display 4"
+          "label": "Дисплей 4"
         },
         {
           "value": "5",
-          "label": "Display 5"
+          "label": "Дисплей 5"
         },
         {
           "value": "follow",
-          "label": "Follow Mouse (Active Monitor)"
+          "label": "Следовать за мышью (активный монитор)"
         }
       ],
       "default": "primary"
@@ -126,61 +125,59 @@
     {
       "key": "Appearance.OffsetX",
       "group": "Appearance",
-      "name": "Offset X",
-      "description": "Adjust the horizontal position (in pixels). Positive values move it right, negative values move it left.",
+      "name": "Сдвиг по горизонтали (px)",
+      "description": "Отрицательное значение — влево, положительное — вправо.",
       "type": "int",
       "default": 0
     },
     {
       "key": "Appearance.OffsetY",
       "group": "Appearance",
-      "name": "Offset Y",
-      "description": "Adjust the vertical position (in pixels). Positive values move it down, negative values move it up. Applies to every state unless the separate expanded offset below is turned on, in which case this becomes the collapsed/idle offset.",
+      "name": "Сдвиг по вертикали (px)",
+      "description": "Отрицательное значение — вверх, положительное — вниз.",
       "type": "int",
       "default": 0
     },
     {
       "key": "Appearance.SeparateExpandedOffsetY",
       "group": "Appearance",
-      "name": "Use a separate Offset Y when expanded",
-      "description": "Lets the island sit at one height while collapsed and a different one while expanded. Useful for tucking the idle pill up near the screen edge while keeping the expanded dashboard somewhere comfortable to interact with.",
+      "name": "Отдельный сдвиг по вертикали для развёрнутого острова",
       "type": "bool",
       "default": false
     },
     {
       "key": "Appearance.OffsetYExpanded",
       "group": "Appearance",
-      "name": "Offset Y (expanded)",
-      "description": "Vertical position in pixels while the island is expanded. Only used when the separate expanded offset above is on. The island eases between this and Offset Y as it expands and collapses, so the two never snap.",
+      "name": "Сдвиг по вертикали в развёрнутом виде (px)",
+      "description": "Используется, только если включён пункт выше.",
       "type": "int",
       "default": 0
     },
     {
       "key": "Appearance.BorderMergedMode",
       "group": "Appearance",
-      "name": "Border-Merged Mode",
-      "description": "Attach the island flush to the top edge of the monitor without a floating gap.",
+      "name": "Слияние с краем экрана",
+      "description": "Остров прилегает к краю экрана без отступа.",
       "type": "bool",
       "default": false
     },
     {
       "key": "Appearance.ShapeStyle",
       "group": "Appearance",
-      "name": "Island Shape Style",
-      "description": "Change the overall shape of the island (Pill, Windows 11, or macOS Notch).",
+      "name": "Форма острова",
       "type": "enum",
       "options": [
         {
           "value": "default",
-          "label": "Default (Apple Pill)"
+          "label": "Пилюля (как у Apple)"
         },
         {
           "value": "w11",
-          "label": "Windows 11 (Rounded Box)"
+          "label": "Windows 11 (скруглённый прямоугольник)"
         },
         {
           "value": "notch",
-          "label": "macOS Notch (Top Edge Flush)"
+          "label": "Вырез macOS (прилегает к верхнему краю)"
         }
       ],
       "default": "default"
@@ -188,25 +185,24 @@
     {
       "key": "Appearance.ProgressStyle",
       "group": "Appearance",
-      "name": "Progress bar style",
-      "description": "Look of the song progress bar in the expanded media player. Wavy and Squiggle animate while music is playing and flatten when paused.",
+      "name": "Вид полосы прогресса трека",
       "type": "enum",
       "options": [
         {
           "value": "slim",
-          "label": "Slim (classic bar)"
+          "label": "Тонкая полоса"
         },
         {
           "value": "wavy",
-          "label": "Wavy"
+          "label": "Волна"
         },
         {
           "value": "squiggle",
-          "label": "Squiggle (slower, subtler wave)"
+          "label": "Плавная волна (медленнее)"
         },
         {
           "value": "bar",
-          "label": "Bar (thick bar with a line thumb)"
+          "label": "Толстая полоса с ползунком"
         }
       ],
       "default": "slim"
@@ -214,25 +210,24 @@
     {
       "key": "Appearance.SpectrumStyle",
       "group": "Appearance",
-      "name": "Audio spectrum style",
-      "description": "Look of the live audio visualizer next to the album art (collapsed pill and expanded player). Pulse Orb, Plasma Thread and Peak Matrix use a real frequency analysis of the system audio, and each plays its own animation when the track changes.",
+      "name": "Вид эквалайзера",
       "type": "enum",
       "options": [
         {
           "value": "bars",
-          "label": "Classic Bars"
+          "label": "Классические столбики"
         },
         {
           "value": "led",
-          "label": "Peak Matrix"
+          "label": "Пиковая матрица"
         },
         {
           "value": "plasma",
-          "label": "Plasma Thread"
+          "label": "Плазменная нить"
         },
         {
           "value": "orb",
-          "label": "Pulse Orb"
+          "label": "Пульсирующий шар"
         }
       ],
       "default": "bars"
@@ -240,8 +235,7 @@
     {
       "key": "Appearance.SizeScale",
       "group": "Appearance",
-      "name": "Size scale",
-      "description": "Makes the entire island and its contents larger or smaller.",
+      "name": "Размер острова",
       "type": "enum",
       "options": [
         {
@@ -278,57 +272,55 @@
     {
       "key": "Appearance.AutoDpiScale",
       "group": "Appearance",
-      "name": "Auto DPI scaling",
-      "description": "Automatically scales the island to match your monitor's DPI. Recommended for 4K screens.",
+      "name": "Учитывать масштаб экрана Windows",
+      "description": "Остров увеличивается вместе с масштабом 125–200 %.",
       "type": "bool",
       "default": true
     },
     {
       "key": "Behavior.AlwaysOnTop",
       "group": "Behavior",
-      "name": "Always on top",
-      "description": "Keeps the island above all other windows. Turn this off if it blocks other apps.",
+      "name": "Поверх всех окон",
       "type": "bool",
       "default": true
     },
     {
       "key": "Behavior.ExpandOnHover",
       "group": "Behavior",
-      "name": "Expand on hover",
-      "description": "Expand the island automatically when hovered. If disabled, click to expand.",
+      "name": "Раскрывать при наведении",
+      "description": "Если выключено — раскрывается по щелчку.",
       "type": "bool",
       "default": true
     },
     {
       "key": "Behavior.AutoHideIdleSeconds",
       "group": "Behavior",
-      "name": "Auto-hide island (all states)",
-      "description": "Hide the island (including idle, media, and other states) after this many seconds of inactivity. 0 to disable.",
+      "name": "Автоматически скрывать остров",
       "type": "enum",
       "options": [
         {
           "value": "-1",
-          "label": "Hide instantly"
+          "label": "Сразу"
         },
         {
           "value": "0",
-          "label": "Never hide (default)"
+          "label": "Никогда (по умолчанию)"
         },
         {
           "value": "5",
-          "label": "Hide after 5 seconds"
+          "label": "Через 5 секунд"
         },
         {
           "value": "10",
-          "label": "Hide after 10 seconds"
+          "label": "Через 10 секунд"
         },
         {
           "value": "30",
-          "label": "Hide after 30 seconds"
+          "label": "Через 30 секунд"
         },
         {
           "value": "60",
-          "label": "Hide after 60 seconds"
+          "label": "Через 60 секунд"
         }
       ],
       "default": "0"
@@ -336,33 +328,32 @@
     {
       "key": "Behavior.AutoHideFullscreen",
       "group": "Behavior",
-      "name": "Hide on full screen",
-      "description": "Automatically hide the island when playing a video or app in full screen mode.",
+      "name": "Скрывать в полноэкранном режиме",
+      "description": "Нужно для игрового режима.",
       "type": "bool",
       "default": true
     },
     {
       "key": "Behavior.UnhideOnHover",
       "group": "Behavior",
-      "name": "Unhide on hover",
-      "description": "Allow the hidden island to reappear when you hover your mouse over it.",
+      "name": "Показывать скрытый остров при наведении",
       "type": "bool",
       "default": true
     },
     {
       "key": "Animations.TargetFPS",
       "group": "Animations",
-      "name": "Refresh rate / FPS",
-      "description": "Set the animation frame rate. Choose Auto to dynamically match your active monitor's refresh rate (up to 360Hz/500Hz), or select a fixed FPS.",
+      "name": "Частота кадров анимаций",
+      "description": "Больше — плавнее, но больше нагрузка.",
       "type": "enum",
       "options": [
         {
           "value": "auto",
-          "label": "Auto (Match Monitor Refresh Rate)"
+          "label": "Авто (как у монитора)"
         },
         {
           "value": "60",
-          "label": "60 FPS (Eco / Standard)"
+          "label": "60 FPS (экономно)"
         },
         {
           "value": "90",
@@ -386,11 +377,11 @@
         },
         {
           "value": "360",
-          "label": "360 FPS (Ultra Smooth)"
+          "label": "360 FPS (очень плавно)"
         },
         {
           "value": "500",
-          "label": "500 FPS (Maximum / Uncapped)"
+          "label": "500 FPS (без ограничения)"
         }
       ],
       "default": "auto"
@@ -398,25 +389,24 @@
     {
       "key": "Animations.AnimationStyle",
       "group": "Animations",
-      "name": "Animation bounciness / style",
-      "description": "Control the spring physics and feel of the animation.",
+      "name": "Характер анимации",
       "type": "enum",
       "options": [
         {
           "value": "smooth",
-          "label": "Smooth (No bounciness / Critically damped)"
+          "label": "Плавная (без пружинистости)"
         },
         {
           "value": "default",
-          "label": "Default (Balanced Apple-like spring)"
+          "label": "Стандартная (пружина как у Apple)"
         },
         {
           "value": "bouncy",
-          "label": "Bouncy (Dynamic elastic spring)"
+          "label": "Упругая"
         },
         {
           "value": "snappy",
-          "label": "Snappy (High stiffness, quick settle)"
+          "label": "Резкая (быстро останавливается)"
         }
       ],
       "default": "default"
@@ -424,33 +414,32 @@
     {
       "key": "Animations.AnimationSpeed",
       "group": "Animations",
-      "name": "Animation speed",
-      "description": "How fast the island expands and collapses.",
+      "name": "Скорость анимации",
       "type": "enum",
       "options": [
         {
           "value": "very-slow",
-          "label": "Very Slow (0.5x)"
+          "label": "Очень медленно (0,5×)"
         },
         {
           "value": "slow",
-          "label": "Slow (0.75x)"
+          "label": "Медленно (0,75×)"
         },
         {
           "value": "normal",
-          "label": "Normal (1.0x)"
+          "label": "Обычно (1×)"
         },
         {
           "value": "fast",
-          "label": "Fast (1.35x)"
+          "label": "Быстро (1,35×)"
         },
         {
           "value": "very-fast",
-          "label": "Very Fast (1.65x)"
+          "label": "Очень быстро (1,65×)"
         },
         {
           "value": "ultra-fast",
-          "label": "Ultra Fast (2.0x)"
+          "label": "Максимально быстро (2×)"
         }
       ],
       "default": "normal"
@@ -458,45 +447,44 @@
     {
       "key": "Themes.ThemePreset",
       "group": "Themes",
-      "name": "Theme preset",
-      "description": "Select a curated color theme, or choose Custom to use your own hex colors below.",
+      "name": "Тема",
       "type": "enum",
       "options": [
         {
           "value": "obsidian",
-          "label": "Obsidian - true black (Default)"
+          "label": "Obsidian — чёрная (по умолчанию)"
         },
         {
           "value": "graphite",
-          "label": "Graphite - neutral Windows 11 dark"
+          "label": "Graphite — тёмная Windows 11"
         },
         {
           "value": "slate",
-          "label": "Slate - cool blue-grey"
+          "label": "Slate — сине-серая"
         },
         {
           "value": "nord",
-          "label": "Nord - the Nord palette"
+          "label": "Nord — палитра Nord"
         },
         {
           "value": "evergreen",
-          "label": "Evergreen - deep green"
+          "label": "Evergreen — тёмно-зелёная"
         },
         {
           "value": "espresso",
-          "label": "Espresso - warm brown"
+          "label": "Espresso — тёплая коричневая"
         },
         {
           "value": "plum",
-          "label": "Plum - muted mauve"
+          "label": "Plum — приглушённая сиреневая"
         },
         {
           "value": "porcelain",
-          "label": "Porcelain - light theme"
+          "label": "Porcelain — светлая"
         },
         {
           "value": "custom",
-          "label": "Custom Colors (Use Hex Below)"
+          "label": "Свои цвета (поля ниже)"
         }
       ],
       "default": "obsidian"
@@ -504,37 +492,36 @@
     {
       "key": "Themes.PillOpacity",
       "group": "Themes",
-      "name": "Pill transparency",
-      "description": "35 to 100. Lower values make the island more see-through.",
+      "name": "Непрозрачность острова (35–100)",
+      "description": "Меньше — прозрачнее.",
       "type": "int",
       "default": 96
     },
     {
       "key": "Themes.TintIntensity",
       "group": "Themes",
-      "name": "Background tint intensity",
-      "description": "0 to 100. Controls how dark the background tint behind the island is.",
+      "name": "Затемнение фона (0–100)",
       "type": "int",
       "default": 72
     },
     {
       "key": "Themes.BackdropMaterial",
       "group": "Themes",
-      "name": "Backdrop material (real Windows blur)",
-      "description": "Paints genuine Windows blur or acrylic behind the island so your desktop and windows show through it, using the same effect the system uses for its own surfaces. Acrylic adds Windows' frosted grain and a tint of your background colour (see Acrylic tint strength). Requires Windows 10 1803 or newer, and Windows' Transparency effects must be turned ON (Settings > Personalization > Colors > Transparency effects, or on Windows 11 also Settings > Accessibility > Visual effects). If it is off, or Battery saver is on, you will only see a flat tint with no blur. When this is on, use Backdrop fill opacity below to control how much of the blur comes through.",
+      "name": "Материал фона",
+      "description": "Настоящее размытие Windows за островом. Для «Размытие», «Акрил» и Liquid Glass «С тонировкой» нужны «Эффекты прозрачности» Windows (Параметры → Персонализация → Цвета).",
       "type": "enum",
       "options": [
         {
           "value": "none",
-          "label": "Off (solid background)"
+          "label": "Выключено (сплошной фон)"
         },
         {
           "value": "blur",
-          "label": "Blur"
+          "label": "Размытие"
         },
         {
           "value": "acrylic",
-          "label": "Acrylic (frosted)"
+          "label": "Акрил (матовое стекло)"
         },
         {
           "value": "liquidglass",
@@ -580,69 +567,64 @@
     {
       "key": "Themes.BackdropFillOpacity",
       "group": "Themes",
-      "name": "Backdrop fill opacity",
-      "description": "0 to 100. Only used when a Backdrop material is enabled. How opaque the island's own background stays on top of the blur - lower values let more of the blurred desktop through. Has no effect when the backdrop is Off.",
+      "name": "Плотность фона поверх размытия (0–100)",
+      "description": "Меньше — сильнее видно размытый рабочий стол. Не влияет на Liquid Glass.",
       "type": "int",
       "default": 45
     },
     {
       "key": "Themes.BackdropTint",
       "group": "Themes",
-      "name": "Acrylic tint strength",
-      "description": "0 to 100. How strongly your background colour tints the backdrop. Acrylic uses the full strength; Blur uses a lighter wash of the same colour so the desktop stays readable.",
+      "name": "Тонировка акрила (0–100)",
       "type": "int",
       "default": 55
     },
     {
       "key": "Themes.MaterialDepth",
       "group": "Themes",
-      "name": "Depth shading",
-      "description": "Adds soft downward shading and the accent wash so the island has depth instead of looking like one flat fill. No edge highlights or rim lighting are involved. Turn off for a completely flat look.",
+      "name": "Объём (затенение и подсветка акцентом)",
       "type": "bool",
       "default": true
     },
     {
       "key": "Themes.DropShadow",
       "group": "Themes",
-      "name": "Soft drop shadow",
-      "description": "Casts a soft shadow beneath the island to lift it off the desktop.",
+      "name": "Мягкая тень под островом",
       "type": "bool",
       "default": true
     },
     {
       "key": "Themes.AccentBloom",
       "group": "Themes",
-      "name": "Accent bloom intensity",
-      "description": "0 to 200. Strength of the soft accent-coloured wash bleeding in from the top of the island. Driven by album art when the accent mode is Auto. Set to 0 to remove it.",
+      "name": "Сила подсветки акцентом (0–200)",
+      "description": "Цветное свечение сверху острова, по умолчанию берётся из обложки.",
       "type": "int",
       "default": 100
     },
     {
       "key": "Themes.TextScale",
       "group": "Themes",
-      "name": "Text size",
-      "description": "70 to 160. Scales all island text independently of the overall Size scale, so you can keep the island compact while making the clock and labels easier to read.",
+      "name": "Размер текста (70–160 %)",
       "type": "int",
       "default": 100
     },
     {
       "key": "Themes.AccentColorMode",
       "group": "Themes",
-      "name": "Accent color mode",
-      "description": "How the glowing accent color is chosen. Auto extracts it from album art.",
+      "name": "Цвет акцента",
       "type": "enum",
       "options": [
         {
           "value": "auto",
-          "label": "Auto, from album art"
+          "label": "Авто, из обложки"
         },
         {
           "value": "system",
-          "label": "System (Device Accent)"
+          "label": "Как в Windows"
         },
         {
           "value": "custom",
-          "label": "Custom hex"
+          "label": "Свой цвет (ниже)"
         }
       ],
       "default": "auto"
@@ -650,25 +632,24 @@
     {
       "key": "Themes.CustomAccentHex",
       "group": "Themes",
-      "name": "Custom accent hex",
-      "description": "The hex color to use when the accent mode is set to Custom.",
+      "name": "Свой цвет акцента",
+      "description": "Например #0A84FF.",
       "type": "string",
       "default": "#4cc9f0"
     },
     {
       "key": "Themes.CalendarAccent",
       "group": "Themes",
-      "name": "Calendar accent color",
-      "description": "Accent color for the calendar's month name and today's marker. Default uses the island's accent color mode; System always uses the Windows accent.",
+      "name": "Цвет акцента календаря",
       "type": "enum",
       "options": [
         {
           "value": "red",
-          "label": "Default (Island accent)"
+          "label": "Как у острова"
         },
         {
           "value": "system",
-          "label": "System (Device Accent)"
+          "label": "Как в Windows"
         }
       ],
       "default": "red"
@@ -676,37 +657,35 @@
     {
       "key": "Themes.ClockAccentGlow",
       "group": "Themes",
-      "name": "Show clock background circle/glow",
-      "description": "Display the soft accent circle/glow behind the time in the expanded clock view. Turn off for a clean, minimal clock without background glow.",
+      "name": "Свечение за часами",
       "type": "bool",
       "default": true
     },
     {
       "key": "Themes.FontFamily",
       "group": "Themes",
-      "name": "Font family",
-      "description": "Custom font family for island text (e.g. Segoe UI, Arial, Aptos, Consolas). Leave empty for system default.",
+      "name": "Шрифт",
+      "description": "Название шрифта Windows, например Segoe UI Variable. Пусто — по умолчанию.",
       "type": "string",
       "default": ""
     },
     {
       "key": "Themes.ContourBorderMode",
       "group": "Themes",
-      "name": "Contour border",
-      "description": "Choose the island's border style. Default uses the theme's matching border, Auto extracts the border color from album art, and Borderless removes all outer border outlines.",
+      "name": "Рамка острова",
       "type": "enum",
       "options": [
         {
           "value": "default",
-          "label": "Default"
+          "label": "Обычная"
         },
         {
           "value": "auto",
-          "label": "Auto (From album art)"
+          "label": "Авто (цвет обложки)"
         },
         {
           "value": "borderless",
-          "label": "Borderless"
+          "label": "Без рамки"
         }
       ],
       "default": "default"
@@ -714,213 +693,195 @@
     {
       "key": "Themes.ContourBorderHex",
       "group": "Themes",
-      "name": "Contour border hex color",
-      "description": "Hex color for the island contour stroke. Changing it from the default overrides the selected Theme preset; restore the default to go back to the preset.",
+      "name": "Цвет рамки",
       "type": "string",
       "default": "#1E1E22"
     },
     {
       "key": "Themes.PillBgColor",
       "group": "Themes",
-      "name": "Pill background color",
-      "description": "Hex color for the island background. Accepts 3, 4, 6 or 8 hex digits, so use the 8-digit RRGGBBAA form for a translucent background (for example 0D0D0FB0) while keeping the text and icons opaque. Changing it from the default overrides the selected Theme preset; restore the default to go back to the preset.",
+      "name": "Цвет фона острова",
+      "description": "Для темы «Свои цвета». Формат #RRGGBB или #RRGGBBAA (с прозрачностью).",
       "type": "string",
       "default": "#08080A"
     },
     {
       "key": "Themes.TextPrimaryColor",
       "group": "Themes",
-      "name": "Primary text color",
-      "description": "Accessible hex color for titles and main text. Changing it from the default overrides the selected Theme preset; restore the default to go back to the preset.",
+      "name": "Цвет основного текста",
+      "description": "Для темы «Свои цвета».",
       "type": "string",
       "default": "#FFFFFF"
     },
     {
       "key": "Themes.TextSecondaryColor",
       "group": "Themes",
-      "name": "Secondary text color",
-      "description": "Accessible hex color for artist names and muted labels. Changing it from the default overrides the selected Theme preset; restore the default to go back to the preset.",
+      "name": "Цвет второстепенного текста",
+      "description": "Для темы «Свои цвета».",
       "type": "string",
       "default": "#9B9BA5"
     },
     {
       "key": "Indicators.PrivacyDots",
       "group": "Indicators",
-      "name": "Show privacy indicators (Mic & Camera)",
-      "description": "Master toggle to display the iOS-style privacy dots when microphone or camera is in use.",
+      "name": "Показывать индикаторы микрофона и камеры",
       "type": "bool",
       "default": true
     },
     {
       "key": "Indicators.PrivacyDotsMic",
       "group": "Indicators",
-      "name": "Show microphone indicator (Orange dot)",
-      "description": "Show the orange dot when microphone is in use. Turn off if background apps (like Discord/OBS) keep it permanently active.",
+      "name": "Индикатор микрофона (оранжевая точка)",
       "type": "bool",
       "default": true
     },
     {
       "key": "Indicators.PrivacyDotsMicHex",
       "group": "Indicators",
-      "name": "Microphone dot color",
-      "description": "Custom hex color for microphone privacy indicator.",
+      "name": "Цвет индикатора микрофона",
       "type": "string",
       "default": "#FF9500"
     },
     {
       "key": "Indicators.PrivacyDotsCam",
       "group": "Indicators",
-      "name": "Show camera indicator (Green dot)",
-      "description": "Show the green dot when webcam is in use.",
+      "name": "Индикатор камеры (зелёная точка)",
       "type": "bool",
       "default": true
     },
     {
       "key": "Indicators.PrivacyDotsCamHex",
       "group": "Indicators",
-      "name": "Camera dot color",
-      "description": "Custom hex color for camera privacy indicator.",
+      "name": "Цвет индикатора камеры",
       "type": "string",
       "default": "#34C759"
     },
     {
       "key": "Modules.Media",
       "group": "Modules",
-      "name": "Media module",
-      "description": "Shows album art, song info, and playback controls when music is playing.",
+      "name": "Музыкальный плеер",
       "type": "bool",
       "default": true
     },
     {
       "key": "Modules.MediaAutoExpand",
       "group": "Modules",
-      "name": "Auto-expand on track change",
-      "description": "Automatically expand the island when a new song or video starts playing. If disabled, album art updates smoothly in the collapsed pill without unprompted expansion.",
+      "name": "Раскрывать при смене трека",
       "type": "bool",
       "default": false
     },
     {
       "key": "Modules.MediaPillClock",
       "group": "Modules",
-      "name": "Show clock in the collapsed media pill",
-      "description": "While media is playing, the collapsed pill also shows the current time on the left, separated from the album cover by a thin divider. Hovering still opens the normal player. Uses the same 12h/24h and seconds options as the clock below. Off by default.",
+      "name": "Часы в свёрнутом плеере",
       "type": "bool",
       "default": false
     },
     {
       "key": "Modules.Volume",
       "group": "Modules",
-      "name": "Volume slider flyout",
-      "description": "Shows a volume slider banner on the island when adjusting system volume. Disable if you prefer the default Windows volume flyout.",
+      "name": "Ползунок громкости",
       "type": "bool",
       "default": true
     },
     {
       "key": "Modules.Brightness",
       "group": "Modules",
-      "name": "Brightness slider flyout",
-      "description": "Shows a brightness slider banner on the island when you change the screen brightness. Works with a laptop's built-in display. Disable if you prefer the default Windows brightness flyout.",
+      "name": "Ползунок яркости",
       "type": "bool",
       "default": true
     },
     {
       "key": "Modules.Battery",
       "group": "Modules",
-      "name": "Battery module",
-      "description": "Shows an alert when your laptop battery is running low.",
+      "name": "Батарея",
+      "description": "Предупреждение о низком заряде и зарядке.",
       "type": "bool",
       "default": true
     },
     {
       "key": "Modules.BluetoothIndicator",
       "group": "Modules",
-      "name": "Bluetooth connect/disconnect indicator",
-      "description": "Shows a card with the device name, category icon, and battery level (if available) when a Bluetooth device connects or disconnects.",
+      "name": "Подключение Bluetooth-устройств",
       "type": "bool",
       "default": true
     },
     {
       "key": "Modules.BluetoothShowBattery",
       "group": "Modules",
-      "name": "Show Bluetooth battery level",
-      "description": "Reads battery level over BLE GATT when the device supports it. Not all classic Bluetooth devices report battery this way — when unavailable, only a Connected/Disconnected label is shown.",
+      "name": "Заряд Bluetooth-устройств",
       "type": "bool",
       "default": true
     },
     {
       "key": "Modules.Progress",
       "group": "Modules",
-      "name": "Progress module",
-      "description": "Shows a progress ring around the island for downloads or file copies.",
+      "name": "Кольцо прогресса",
+      "description": "Включается командой DynamicIsland.exe --progress N.",
       "type": "bool",
       "default": true
     },
     {
       "key": "Modules.TimerModule",
       "group": "Modules",
-      "name": "Focus Timer module",
-      "description": "Enables a Pomodoro-style focus/break timer, startable from the island's right-click menu.",
+      "name": "Таймер фокусировки",
+      "description": "Запускается из меню правой кнопки.",
       "type": "bool",
       "default": true
     },
     {
       "key": "Modules.HardwareMonitorModule",
       "group": "Modules",
-      "name": "Include Hardware Monitor in scroll loop",
-      "description": "Add CPU, GPU, RAM, FPS and Network stats card to mouse-wheel scroll loop.",
+      "name": "Вкладка «Монитор железа»",
       "type": "bool",
       "default": true
     },
     {
       "key": "Modules.GameOverlay",
       "group": "Modules",
-      "name": "Enable game overlay mode",
-      "description": "Replaces the clock with live stats like FPS, CPU, and RAM usage.",
+      "name": "Игровой оверлей",
+      "description": "Вместо часов — FPS, загрузка процессора и памяти.",
       "type": "bool",
       "default": false
     },
     {
       "key": "Modules.ShowMetricText",
       "group": "Modules",
-      "name": "Show labels in metric chips",
-      "description": "Adds text labels (like \"CPU\") inside the game overlay bars.",
+      "name": "Подписи у показателей",
       "type": "bool",
       "default": false
     },
     {
       "key": "Modules.Weather",
       "group": "Modules",
-      "name": "Weather module",
-      "description": "Shows the weather on the right side of the pill. Turn off to only show the clock.",
+      "name": "Погода",
       "type": "bool",
       "default": true
     },
     {
       "key": "Modules.WeatherCity",
       "group": "Modules",
-      "name": "Weather City (Optional)",
-      "description": "Enter your city (e.g. London). Leave blank to use auto IP geolocation.",
+      "name": "Город для погоды",
+      "description": "Например Amsterdam. Пусто — определяется автоматически по IP.",
       "type": "string",
       "default": ""
     },
     {
       "key": "Modules.WeatherFahrenheit",
       "group": "Modules",
-      "name": "Use Fahrenheit",
-      "description": "Display weather temperature and wind speed in imperial units.",
+      "name": "Градусы Фаренгейта",
       "type": "bool",
       "default": false
     },
     {
       "key": "Modules.Language",
       "group": "Modules",
-      "name": "Language",
-      "description": "Language for the island's own text labels. Auto follows your Windows display language.",
+      "name": "Язык подписей острова",
       "type": "enum",
       "options": [
         {
           "value": "auto",
-          "label": "Auto (Follow Windows)"
+          "label": "Как в Windows"
         },
         {
           "value": "en",
@@ -928,47 +889,47 @@
         },
         {
           "value": "fr",
-          "label": "Français (French)"
+          "label": "Français"
         },
         {
           "value": "es",
-          "label": "Español (Spanish)"
+          "label": "Español"
         },
         {
           "value": "de",
-          "label": "Deutsch (German)"
+          "label": "Deutsch"
         },
         {
           "value": "pt",
-          "label": "Português (Portuguese)"
+          "label": "Português"
         },
         {
           "value": "it",
-          "label": "Italiano (Italian)"
+          "label": "Italiano"
         },
         {
           "value": "ru",
-          "label": "Русский (Russian)"
+          "label": "Русский"
         },
         {
           "value": "tr",
-          "label": "Türkçe (Turkish)"
+          "label": "Türkçe"
         },
         {
           "value": "hi",
-          "label": "हिन्दी (Hindi)"
+          "label": "हिन्दी"
         },
         {
           "value": "zh",
-          "label": "简体中文 (Simplified Chinese)"
+          "label": "简体中文"
         },
         {
           "value": "ja",
-          "label": "日本語 (Japanese)"
+          "label": "日本語"
         },
         {
           "value": "ko",
-          "label": "한국어 (Korean)"
+          "label": "한국어"
         }
       ],
       "default": "auto"
@@ -976,21 +937,20 @@
     {
       "key": "Modules.ClockFormat",
       "group": "Modules",
-      "name": "Clock format",
-      "description": "Choose 12-hour or 24-hour time, or follow your Windows locale setting.",
+      "name": "Формат времени",
       "type": "enum",
       "options": [
         {
           "value": "system",
-          "label": "Follow Windows locale"
+          "label": "Как в Windows"
         },
         {
           "value": "12h",
-          "label": "12-hour (3:07 PM)"
+          "label": "12 часов (3:07 PM)"
         },
         {
           "value": "24h",
-          "label": "24-hour (15:07)"
+          "label": "24 часа (15:07)"
         }
       ],
       "default": "system"
@@ -998,45 +958,42 @@
     {
       "key": "Modules.ShowSeconds",
       "group": "Modules",
-      "name": "Show seconds on the clock",
-      "description": "Include seconds in the expanded clock. Costs a little more CPU because the clock then redraws every second.",
+      "name": "Показывать секунды",
       "type": "bool",
       "default": false
     },
     {
       "key": "Modules.DateFormat",
       "group": "Modules",
-      "name": "Custom date format",
-      "description": "Custom date pattern for the idle dashboard. Leave empty to follow your Windows locale. Supports yyyy (year), MM / M (month), dd / d (day), MMM (short month name), MMMM (full month name), ddd / dddd (weekday). Any other characters are printed as-is, so CJK formats like yyyy年MM月dd日 work.",
+      "name": "Свой формат даты",
+      "description": "Например dd.MM.yyyy или dddd, d MMMM. Пусто — по умолчанию.",
       "type": "string",
       "default": ""
     },
     {
       "key": "Modules.DateFirst",
       "group": "Modules",
-      "name": "Show date above the time",
-      "description": "Swap the idle dashboard so the date is the headline and the time sits beneath it.",
+      "name": "Дата над временем",
       "type": "bool",
       "default": false
     },
     {
       "key": "Modules.FirstDayOfWeek",
       "group": "Modules",
-      "name": "First day of the week",
-      "description": "Which weekday the calendar grid starts on. Auto follows your Windows regional format.",
+      "name": "Первый день недели",
       "type": "enum",
       "options": [
         {
           "value": "auto",
-          "label": "Auto (Follow Windows)"
+          "label": "Как в Windows"
         },
         {
           "value": "monday",
-          "label": "Monday"
+          "label": "Понедельник"
         },
         {
           "value": "sunday",
-          "label": "Sunday"
+          "label": "Воскресенье"
         }
       ],
       "default": "auto"
@@ -1044,56 +1001,50 @@
     {
       "key": "Modules.MediaExpandBlocklist",
       "group": "Modules",
-      "name": "Never auto-expand for these apps",
-      "description": "Comma-separated list of app or site names that should never make the island expand on a track change, while still updating quietly in the collapsed pill. Matched loosely against the media source and title, for example: chrome, tiktok, youtube.",
+      "name": "Не раскрывать плеер для программ",
+      "description": "Названия процессов через запятую, например chrome.exe, msedge.exe.",
       "type": "string",
       "default": ""
     },
     {
       "key": "Modules.GameOverlayShowFps",
       "group": "Modules",
-      "name": "Game overlay - show FPS",
-      "description": "Include the frame rate in the game overlay strip.",
+      "name": "Оверлей: FPS",
       "type": "bool",
       "default": true
     },
     {
       "key": "Modules.GameOverlayShowCpu",
       "group": "Modules",
-      "name": "Game overlay - show CPU",
-      "description": "Include CPU utilization in the game overlay strip.",
+      "name": "Оверлей: процессор",
       "type": "bool",
       "default": true
     },
     {
       "key": "Modules.GameOverlayShowGpu",
       "group": "Modules",
-      "name": "Game overlay - show GPU",
-      "description": "Include GPU utilization in the game overlay strip.",
+      "name": "Оверлей: видеокарта",
       "type": "bool",
       "default": true
     },
     {
       "key": "Modules.GameOverlayShowRam",
       "group": "Modules",
-      "name": "Game overlay - show RAM",
-      "description": "Include memory usage in the game overlay strip.",
+      "name": "Оверлей: память",
       "type": "bool",
       "default": true
     },
     {
       "key": "Modules.GameOverlayShowDisk",
       "group": "Modules",
-      "name": "Game overlay - show disk",
-      "description": "Include disk usage in the game overlay strip.",
+      "name": "Оверлей: диск",
       "type": "bool",
       "default": true
     },
     {
       "key": "Modules.GameOverlayCompact",
       "group": "Modules",
-      "name": "Game overlay - compact size",
-      "description": "Shrink the game overlay to a narrow strip that fits neatly inside the taskbar area.",
+      "name": "Оверлей: компактный размер",
       "type": "bool",
       "default": false
     },
@@ -2622,16 +2573,15 @@
     {
       "key": "Shortcuts.HideShowHotkeyEnabled",
       "group": "Shortcuts",
-      "name": "Enable hide/show hotkey",
-      "description": "Toggle the island's visibility instantly with a keyboard shortcut. The hotkey is the only way to bring a hidden island back, so leave this on unless you're comfortable re-enabling it from Windhawk settings.",
+      "name": "Горячая клавиша «скрыть/показать»",
+      "description": "Единственный способ вернуть скрытый остров, не выключайте без необходимости.",
       "type": "bool",
       "default": true
     },
     {
       "key": "Shortcuts.HideShowModifiers",
       "group": "Shortcuts",
-      "name": "Hotkey modifiers",
-      "description": "Modifier keys combined with the letter/number key below.",
+      "name": "Модификаторы",
       "type": "enum",
       "options": [
         {
@@ -2660,8 +2610,7 @@
     {
       "key": "Shortcuts.HideShowKey",
       "group": "Shortcuts",
-      "name": "Hotkey letter/number key",
-      "description": "A single A-Z or 0-9 key combined with the modifiers above. Falls back to \"D\" if left blank or invalid.",
+      "name": "Клавиша (A–Z или 0–9)",
       "type": "string",
       "default": "D"
     }

@@ -1,4 +1,4 @@
-#include "Settings.h"
+#include "common/Settings.h"
 
 #include <windows.h>
 
@@ -10,11 +10,11 @@
 #include <unordered_map>
 #include <vector>
 
-#include "../../../third_party/nlohmann/json.hpp"
-#include "../../shared/Resources.h"
-#include "../../shared/Utf.h"
-#include "../app/Paths.h"
-#include "../log/Log.h"
+#include <nlohmann/json.hpp>
+#include "common/Resources.h"
+#include "common/Utf.h"
+#include "common/Paths.h"
+#include "common/Log.h"
 
 using json = nlohmann::json;
 
@@ -94,6 +94,7 @@ int g_schemaVersion = 1;
 std::shared_mutex g_lock;
 std::unordered_map<std::wstring, Value> g_values;
 std::string g_lastFileContent;
+json g_current = json::object();  // clean values as written to settings.json
 std::wstring g_lastProblem;
 
 bool LoadSchema() {
@@ -234,6 +235,7 @@ bool LoadFile(bool* changedOut) {
         if (!problem.empty()) g_lastProblem = problem;
     }
 
+    g_current = clean;
     std::string text = content.value_or("");
     if (rewrite) {
         json root = {{"schemaVersion", g_schemaVersion}, {"values", clean}};
@@ -242,6 +244,15 @@ bool LoadFile(bool* changedOut) {
     }
     g_lastFileContent = text;
     if (changedOut) *changedOut = changed;
+    return true;
+}
+
+// Writes g_current to settings.json (caller holds g_loadMutex).
+bool SaveCurrentLocked() {
+    json root = {{"schemaVersion", g_schemaVersion}, {"values", g_current}};
+    const std::string text = root.dump(2);
+    if (!WriteFileAtomic(settings::FilePath(), text, true)) return false;
+    g_lastFileContent = text;
     return true;
 }
 
@@ -291,6 +302,65 @@ std::wstring GetString(const wchar_t* key) {
 std::wstring LastProblem() {
     std::shared_lock lock(g_lock);
     return g_lastProblem;
+}
+
+std::string SchemaText() {
+    return std::string(res::LoadText(res::kSettingsSchema));
+}
+
+std::string ValuesJson() {
+    std::lock_guard loadLock(g_loadMutex);
+    return g_current.dump();
+}
+
+bool SetValue(const std::string& key, const std::string& valueJson, std::string* error) {
+    std::lock_guard loadLock(g_loadMutex);
+    auto it = g_schema.find(key);
+    if (it == g_schema.end()) {
+        if (error) *error = "unknown setting";
+        return false;
+    }
+    json v;
+    try {
+        v = json::parse(valueJson);
+    } catch (...) {
+        if (error) *error = "not JSON";
+        return false;
+    }
+    bool fixed = false;
+    const json clean = Validate(key, it->second, &v, &fixed);
+    if (fixed) {
+        if (error) *error = "invalid value";
+        return false;
+    }
+    g_current[key] = clean;
+    {
+        std::unique_lock lock(g_lock);
+        g_values[Utf8ToWide(key)] = ToValue(it->second, clean);
+    }
+    if (!SaveCurrentLocked()) {
+        if (error) *error = "cannot write settings.json";
+        return false;
+    }
+    DI_LOG(L"[Settings] %s = %s", Utf8ToWide(key).c_str(), Utf8ToWide(clean.dump()).c_str());
+    return true;
+}
+
+bool ResetToDefaults() {
+    std::lock_guard loadLock(g_loadMutex);
+    json clean = json::object();
+    std::unordered_map<std::wstring, Value> next;
+    for (const auto& [key, entry] : g_schema) {
+        clean[key] = entry.def;
+        next[Utf8ToWide(key)] = ToValue(entry, entry.def);
+    }
+    g_current = clean;
+    {
+        std::unique_lock lock(g_lock);
+        g_values = std::move(next);
+    }
+    DI_LOG(L"[Settings] reset to defaults");
+    return SaveCurrentLocked();
 }
 }  // namespace settings
 

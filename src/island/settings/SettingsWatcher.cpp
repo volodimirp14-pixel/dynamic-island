@@ -4,8 +4,8 @@
 
 #include <thread>
 
-#include "../app/Paths.h"
-#include "../log/Log.h"
+#include "common/Paths.h"
+#include "common/Log.h"
 
 namespace di::settings {
 namespace {

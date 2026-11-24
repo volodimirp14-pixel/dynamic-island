@@ -1,6 +1,6 @@
 #include "SingleInstance.h"
 
-#include "../../shared/Version.h"
+#include "common/Version.h"
 
 namespace di {
 SingleInstance::SingleInstance() {

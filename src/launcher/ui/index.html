@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Dynamic Island</title>
+<style>
+:root {
+  --bg: #1c1c1e; --side: #161618; --card: #242426; --card2: #2c2c2f; --line: rgba(255,255,255,.07);
+  --text: #f2f2f5; --muted: #9a9aa2; --faint: #6c6c74; --accent: #0a84ff; --accent-soft: rgba(10,132,255,.16);
+  --ok: #30d158; --warn: #ff9f0a; --bad: #ff453a; --track: #3a3a3e; --shadow: 0 1px 2px rgba(0,0,0,.25);
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root { --bg: #f3f3f5; --side: #ebebee; --card: #ffffff; --card2: #f6f6f8; --line: rgba(0,0,0,.07);
+    --text: #1d1d1f; --muted: #6e6e73; --faint: #a1a1a6; --accent: #0071e3; --accent-soft: rgba(0,113,227,.10);
+    --track: #d1d1d6; --shadow: 0 1px 2px rgba(0,0,0,.06); color-scheme: light; }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { font: 14px/1.4 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text);
+  display: flex; overflow: hidden; user-select: none; -webkit-font-smoothing: antialiased; }
+button, input, select { font: inherit; color: inherit; }
+
+/* ── Sidebar ── */
+aside { width: 232px; flex: none; background: var(--side); display: flex; flex-direction: column; padding: 18px 12px; border-right: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 12px; padding: 4px 10px 22px; }
+.pill { width: 42px; height: 16px; border-radius: 9px; background: #000; box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), 0 2px 8px rgba(0,0,0,.35); position: relative; }
+.pill::after { content: ""; position: absolute; right: 6px; top: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--ok); opacity: 0; transition: opacity .3s; }
+.pill.on::after { opacity: 1; }
+.brand b { display: block; font-size: 15px; font-weight: 600; }
+.brand small { color: var(--muted); font-size: 12px; }
+nav a { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: var(--muted); cursor: pointer; margin-bottom: 2px; font-weight: 500; transition: background .15s, color .15s; }
+nav a:hover { background: var(--line); color: var(--text); }
+nav a.active { background: var(--accent-soft); color: var(--text); }
+nav a.active svg { color: var(--accent); }
+nav svg { width: 18px; height: 18px; flex: none; }
+.side-foot { margin-top: auto; padding: 10px 12px 0; color: var(--faint); font-size: 12px; }
+
+/* ── Main ── */
+main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+header { display: flex; align-items: center; gap: 16px; padding: 22px 36px 14px; }
+header h1 { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -.01em; flex: 1; }
+.search { position: relative; width: 260px; }
+.search input { width: 100%; padding: 8px 12px 8px 34px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); outline: none; }
+.search input:focus { border-color: var(--accent); }
+.search svg { position: absolute; left: 11px; top: 10px; width: 15px; height: 15px; color: var(--faint); }
+#content { flex: 1; overflow-y: auto; padding: 6px 36px 40px; scroll-behavior: smooth; }
+#content::-webkit-scrollbar { width: 10px; } #content::-webkit-scrollbar-thumb { background: var(--track); border-radius: 5px; border: 3px solid var(--bg); }
+
+section { margin-bottom: 26px; max-width: 880px; }
+section > h2 { font-size: 13px; font-weight: 600; color: var(--muted); margin: 0 0 8px 4px; text-transform: none; }
+.card { background: var(--card); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+.row { display: flex; align-items: center; gap: 20px; padding: 13px 18px; min-height: 56px; border-top: 1px solid var(--line); transition: opacity .2s; }
+.row:first-child { border-top: none; }
+.row.off { opacity: .4; pointer-events: none; }
+.row .label { flex: 1; min-width: 0; }
+.row .label b { display: block; font-weight: 500; }
+.row .label span { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.row .ctl { flex: none; display: flex; align-items: center; gap: 8px; }
+.row.flash { animation: flash .9s ease; }
+@keyframes flash { 0% { background: var(--accent-soft); } 100% { background: transparent; } }
+
+/* toggle */
+.toggle { width: 42px; height: 24px; border-radius: 12px; background: var(--track); position: relative; cursor: pointer; transition: background .2s; border: none; padding: 0; }
+.toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .22s cubic-bezier(.3,1.4,.5,1); }
+.toggle.on { background: var(--accent); }
+.toggle.on::after { transform: translateX(18px); }
+/* select / inputs */
+select, .num, .txt { background: var(--card2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; outline: none; min-height: 32px; }
+select { padding-right: 28px; max-width: 320px; appearance: none; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center; }
+select:focus, .num:focus, .txt:focus { border-color: var(--accent); }
+.num { width: 86px; text-align: right; }
+.txt { width: 240px; }
+.swatch { width: 28px; height: 28px; border-radius: 7px; border: 1px solid var(--line); cursor: pointer; position: relative; overflow: hidden; }
+.swatch input { position: absolute; inset: -6px; opacity: 0; cursor: pointer; }
+.seg { display: inline-flex; background: var(--card2); border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
+.seg button { border: none; background: none; padding: 5px 12px; border-radius: 6px; cursor: pointer; color: var(--muted); }
+.seg button.on { background: var(--card); color: var(--text); box-shadow: var(--shadow); }
+
+/* buttons */
+.btn { border: 1px solid var(--line); background: var(--card2); border-radius: 8px; padding: 7px 16px; cursor: pointer; font-weight: 500; transition: filter .15s, opacity .15s; }
+.btn:hover { filter: brightness(1.12); }
+.btn.primary { background: var(--accent); border-color: transparent; color: #fff; }
+.btn.danger { color: var(--bad); }
+.btn:disabled { opacity: .45; pointer-events: none; }
+
+/* home */
+.hero { display: flex; align-items: center; gap: 22px; padding: 24px; }
+.hero .big-pill { width: 96px; height: 34px; border-radius: 18px; background: #000; flex: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,.12), 0 6px 18px rgba(0,0,0,.35); position: relative; transition: width .5s cubic-bezier(.3,1.3,.5,1); }
+.hero .big-pill.on { width: 120px; }
+.hero .big-pill::after { content: ""; position: absolute; right: 12px; top: 12px; width: 10px; height: 10px; border-radius: 50%; background: var(--faint); transition: background .3s; }
+.hero .big-pill.on::after { background: var(--ok); box-shadow: 0 0 10px var(--ok); }
+.hero .state { flex: 1; }
+.hero .state b { font-size: 18px; font-weight: 600; display: block; }
+.hero .state span { color: var(--muted); font-size: 13px; }
+.hero .actions { display: flex; gap: 8px; }
+.banner { padding: 12px 16px; border-radius: 10px; margin-bottom: 18px; max-width: 880px; font-size: 13px; }
+.banner.warn { background: rgba(255,159,10,.12); color: var(--warn); }
+.banner.bad { background: rgba(255,69,58,.12); color: var(--bad); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+.grid2 .row { border-top: 1px solid var(--line); }
+.empty { color: var(--muted); padding: 40px 0; text-align: center; }
+a.link { color: var(--accent); cursor: pointer; text-decoration: none; }
+p.note { color: var(--muted); font-size: 13px; margin: 8px 4px 0; max-width: 880px; }
+
+/* toast + modal */
+#toast { position: fixed; bottom: 22px; left: 50%; transform: translate(-50%, 20px); opacity: 0; background: var(--card); border: 1px solid var(--line);
+  padding: 9px 16px; border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.35); transition: opacity .2s, transform .25s; pointer-events: none; font-weight: 500; }
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+#toast.bad { color: var(--bad); }
+#modal { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; }
+#modal.show { display: flex; }
+#modal .box { background: var(--card); border-radius: 14px; padding: 22px 24px; width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+#modal h3 { margin: 0 0 8px; font-size: 17px; }
+#modal p { color: var(--muted); margin: 0 0 18px; }
+#modal .acts { display: flex; justify-content: flex-end; gap: 8px; }
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand"><div class="pill" id="brandPill"></div><div><b>Dynamic Island</b><small id="ver">…</small></div></div>
+  <nav id="nav"></nav>
+  <div class="side-foot">Закрытие этого окна не выключает остров.</div>
+</aside>
+<main>
+  <header><h1 id="title">Главная</h1>
+    <div class="search"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="5"/><path d="M11 11l3.5 3.5"/></svg>
+    <input id="q" placeholder="Поиск настроек" spellcheck="false"></div>
+  </header>
+  <div id="content"></div>
+</main>
+<div id="toast"></div>
+<div id="modal"><div class="box"><h3 id="mTitle"></h3><p id="mText"></p><div class="acts"><button class="btn" id="mNo">Отмена</button><button class="btn primary" id="mYes">OK</button></div></div></div>
+
+<script>
+"use strict";
+// ── Bridge to the C++ host (src/launcher/main.cpp) ──
+const host = window.chrome && window.chrome.webview;
+const send = (m) => host && host.postMessage(m);
+
+const I = (p) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const ICONS = {
+  home: I('<path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/>'),
+  look: I('<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16c1.5 0 1.5-2 .5-3s0-3 1.5-3H17a3 3 0 0 0 3-3"/><circle cx="8.5" cy="10" r="1"/><circle cx="12" cy="7.5" r="1"/>'),
+  modules: I('<rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/>'),
+  stocks: I('<path d="M4 18l5-6 4 3 7-9"/><path d="M15 6h5v5"/>'),
+  notify: I('<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/>'),
+  games: I('<path d="M7 9h10a4 4 0 0 1 4 4v1a3 3 0 0 1-5.5 1.6L15 15H9l-.5.6A3 3 0 0 1 3 14v-1a4 4 0 0 1 4-4z"/><path d="M8 11v3M6.5 12.5h3"/><circle cx="16" cy="12" r=".8"/>'),
+  behavior: I('<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>'),
+  system: I('<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>'),
+  about: I('<circle cx="12" cy="12" r="8"/><path d="M12 11v5M12 8h.01"/>'),
+};
+
+const PAGES = [
+  { id: 'home', title: 'Главная' },
+  { id: 'look', title: 'Внешний вид', groups: ['Themes', 'Appearance', 'Animations', 'Indicators'] },
+  { id: 'modules', title: 'Модули', groups: ['Modules'] },
+  { id: 'stocks', title: 'Акции', groups: ['Stocks'] },
+  { id: 'notify', title: 'Уведомления', groups: ['Telegram', 'Discord'] },
+  { id: 'games', title: 'Игры', groups: ['GameMode'] },
+  { id: 'behavior', title: 'Поведение', groups: ['Behavior', 'QuietMode', 'Shortcuts'] },
+  { id: 'system', title: 'Система' },
+  { id: 'about', title: 'О программе' },
+];
+
+// Sub-sections for long groups (keys not listed land in "Прочее").
+const SUBSECTIONS = {
+  Modules: [
+    ['Музыкальный плеер', ['Media', 'MediaAutoExpand', 'MediaPillClock', 'MediaExpandBlocklist']],
+    ['Часы и календарь', ['Language', 'ClockFormat', 'ShowSeconds', 'DateFormat', 'DateFirst', 'FirstDayOfWeek']],
+    ['Погода', ['Weather', 'WeatherCity', 'WeatherFahrenheit']],
+    ['Всплывающие окна', ['Volume', 'Brightness', 'Battery', 'BluetoothIndicator', 'BluetoothShowBattery', 'Progress', 'TimerModule']],
+    ['Монитор железа и игровой оверлей', ['HardwareMonitorModule', 'ShowMetricText', 'GameOverlay', 'GameOverlayShowFps', 'GameOverlayShowCpu', 'GameOverlayShowGpu', 'GameOverlayShowRam', 'GameOverlayShowDisk', 'GameOverlayCompact']],
+  ],
+  Themes: [
+    ['Тема', ['ThemePreset', 'PillOpacity', 'TintIntensity', 'TextScale', 'FontFamily']],
+    ['Материал', ['BackdropMaterial', 'LiquidGlassStyle', 'LiquidGlassClarity', 'LiquidGlassShine', 'BackdropFillOpacity', 'BackdropTint', 'MaterialDepth', 'DropShadow']],
+    ['Акцент и рамка', ['AccentColorMode', 'CustomAccentHex', 'AccentBloom', 'CalendarAccent', 'ClockAccentGlow', 'ContourBorderMode', 'ContourBorderHex']],
+    ['Свои цвета', ['PillBgColor', 'TextPrimaryColor', 'TextSecondaryColor']],
+  ],
+};
+
+// A row is dimmed (not hidden, so nothing jumps) while it has no effect.
+const v = (k) => state.values[k];
+const ACTIVE_IF = {
+  'Themes.LiquidGlassStyle': () => v('Themes.BackdropMaterial') === 'liquidglass',
+  'Themes.LiquidGlassClarity': () => v('Themes.BackdropMaterial') === 'liquidglass',
+  'Themes.LiquidGlassShine': () => v('Themes.BackdropMaterial') === 'liquidglass',
+  'Themes.BackdropFillOpacity': () => ['blur', 'acrylic'].includes(v('Themes.BackdropMaterial')),
+  'Themes.BackdropTint': () => ['blur', 'acrylic'].includes(v('Themes.BackdropMaterial')),
+  'Themes.CustomAccentHex': () => v('Themes.AccentColorMode') === 'custom',
+  'Themes.ContourBorderHex': () => v('Themes.ContourBorderMode') === 'default',
+  'Themes.PillBgColor': () => v('Themes.ThemePreset') === 'custom',
+  'Themes.TextPrimaryColor': () => v('Themes.ThemePreset') === 'custom',
+  'Themes.TextSecondaryColor': () => v('Themes.ThemePreset') === 'custom',
+  'Appearance.OffsetYExpanded': () => !!v('Appearance.SeparateExpandedOffsetY'),
+  'Indicators.PrivacyDotsMic': () => !!v('Indicators.PrivacyDots'),
+  'Indicators.PrivacyDotsMicHex': () => !!v('Indicators.PrivacyDots') && !!v('Indicators.PrivacyDotsMic'),
+  'Indicators.PrivacyDotsCam': () => !!v('Indicators.PrivacyDots'),
+  'Indicators.PrivacyDotsCamHex': () => !!v('Indicators.PrivacyDots') && !!v('Indicators.PrivacyDotsCam'),
+  'Modules.WeatherCity': () => !!v('Modules.Weather'),
+  'Modules.WeatherFahrenheit': () => !!v('Modules.Weather'),
+  'Modules.MediaAutoExpand': () => !!v('Modules.Media'),
+  'Modules.MediaPillClock': () => !!v('Modules.Media'),
+  'Modules.MediaExpandBlocklist': () => !!v('Modules.Media') && !!v('Modules.MediaAutoExpand'),
+  'Modules.BluetoothShowBattery': () => !!v('Modules.BluetoothIndicator'),
+  'Shortcuts.HideShowModifiers': () => !!v('Shortcuts.HideShowHotkeyEnabled'),
+  'Shortcuts.HideShowKey': () => !!v('Shortcuts.HideShowHotkeyEnabled'),
+  'QuietMode.HotkeyModifiers': () => !!v('QuietMode.HotkeyEnabled'),
+  'QuietMode.HotkeyKey': () => !!v('QuietMode.HotkeyEnabled'),
+};
+const prefixRule = (prefix, master, except) => (k) => k.startsWith(prefix) && k !== master && !(except || []).includes(k) ? () => !!v(master) : null;
+const PREFIX_RULES = [
+  prefixRule('Telegram.', 'Telegram.Enabled'),
+  prefixRule('Discord.', 'Discord.Enabled'),
+  prefixRule('Stocks.', 'Stocks.Enabled'),
+  prefixRule('GameMode.', 'GameMode.SmartGameMode', ['GameMode.DetectD3DFullscreen', 'GameMode.GameProcesses', 'GameMode.LightweightOverlay']),
+  prefixRule('Modules.GameOverlay', 'Modules.GameOverlay'),
+];
+function activeRule(key) {
+  if (ACTIVE_IF[key]) return ACTIVE_IF[key];
+  for (const r of PREFIX_RULES) { const f = r(key); if (f) return f; }
+  return null;
+}
+
+const state = { schema: null, byKey: {}, values: {}, running: false, autostart: false, version: '', page: 'home', problem: '', islandFound: true, busy: false };
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ── Toast / confirm ──
+let toastTimer;
+function toast(text, bad) {
+  const t = $('#toast'); t.textContent = text; t.className = 'show' + (bad ? ' bad' : '');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.className = bad ? 'bad' : ''), 1800);
+}
+function confirmBox(title, text, yes) {
+  return new Promise((res) => {
+    $('#mTitle').textContent = title; $('#mText').textContent = text; $('#mYes').textContent = yes;
+    $('#modal').className = 'show';
+    const done = (r) => { $('#modal').className = ''; $('#mYes').onclick = $('#mNo').onclick = null; res(r); };
+    $('#mYes').onclick = () => done(true); $('#mNo').onclick = () => done(false);
+  });
+}
+
+// ── Controls ──
+const isColor = (s) => /(Hex|Color)$/.test(s.key);
+function control(s) {
+  const val = state.values[s.key];
+  if (s.type === 'bool') return `<button class="toggle ${val ? 'on' : ''}" data-k="${s.key}" data-t="bool" aria-label="${esc(s.name)}"></button>`;
+  if (s.type === 'enum') {
+    const short = s.options.length <= 3 && s.options.every((o) => o.label.length <= 14);
+    if (short) return `<div class="seg" data-k="${s.key}">${s.options.map((o) => `<button data-v="${esc(o.value)}" class="${o.value === val ? 'on' : ''}">${esc(o.label)}</button>`).join('')}</div>`;
+    return `<select data-k="${s.key}" data-t="enum">${s.options.map((o) => `<option value="${esc(o.value)}" ${o.value === val ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}</select>`;
+  }
+  if (s.type === 'int') return `<input class="num" type="number" data-k="${s.key}" data-t="int" value="${val}">`;
+  if (isColor(s)) {
+    const hex6 = /^#[0-9a-f]{6}/i.test(val) ? val.slice(0, 7) : '#000000';
+    return `<label class="swatch" style="background:${esc(val || hex6)}"><input type="color" data-k="${s.key}" data-t="color" value="${hex6}"></label>
+            <input class="txt" style="width:120px" data-k="${s.key}" data-t="string" value="${esc(val)}" spellcheck="false">`;
+  }
+  return `<input class="txt" data-k="${s.key}" data-t="string" value="${esc(val)}" spellcheck="false">`;
+}
+function row(s) {
+  const rule = activeRule(s.key);
+  const off = rule && !rule() ? ' off' : '';
+  return `<div class="row${off}" data-row="${s.key}"><div class="label"><b>${esc(s.name)}</b>${s.description ? `<span>${esc(s.description)}</span>` : ''}</div><div class="ctl">${control(s)}</div></div>`;
+}
+function sectionHtml(title, settings, cls = '') {
+  if (!settings.length) return '';
+  return `<section><h2>${esc(title)}</h2><div class="card ${cls}">${settings.map(row).join('')}</div></section>`;
+}
+function groupHtml(gkey) {
+  const g = state.schema.groups.find((x) => x.key === gkey);
+  const all = state.schema.settings.filter((s) => s.group === gkey);
+  const subs = SUBSECTIONS[gkey];
+  if (!subs) return sectionHtml(g ? g.name : gkey, all);
+  const used = new Set();
+  let html = '';
+  for (const [title, keys] of subs) {
+    const list = keys.map((k) => state.byKey[`${gkey}.${k}`]).filter(Boolean);
+    list.forEach((s) => used.add(s.key));
+    html += sectionHtml(title, list);
+  }
+  return html + sectionHtml('Прочее', all.filter((s) => !used.has(s.key)));
+}
+
+// ── Pages ──
+function homeHtml() {
+  const run = state.running;
+  let html = '';
+  if (!state.islandFound) html += `<div class="banner bad">Рядом с Launcher нет файла DynamicIsland.exe — положите оба файла в одну папку.</div>`;
+  if (state.problem) html += `<div class="banner warn">${esc(state.problem)}</div>`;
+  html += `<section><div class="card"><div class="hero">
+      <div class="big-pill ${run ? 'on' : ''}"></div>
+      <div class="state"><b>${run ? 'Остров работает' : 'Остров остановлен'}</b><span>${run ? 'Изменения настроек применяются сразу.' : 'Настройки сохранятся и применятся при запуске.'}</span></div>
+      <div class="actions">
+        ${run ? `<button class="btn" data-act="restart" ${state.busy ? 'disabled' : ''}>Перезапустить</button><button class="btn" data-act="stop" ${state.busy ? 'disabled' : ''}>Остановить</button>`
+              : `<button class="btn primary" data-act="start" ${state.busy || !state.islandFound ? 'disabled' : ''}>Запустить</button>`}
+      </div></div></div></section>`;
+  const quick = ['Telegram.Enabled', 'Discord.Enabled', 'GameMode.SmartGameMode', 'Stocks.Enabled', 'Themes.ThemePreset', 'Themes.BackdropMaterial']
+    .map((k) => state.byKey[k]).filter(Boolean);
+  html += sectionHtml('Быстрые настройки', quick);
+  html += `<section><h2>Система</h2><div class="card"><div class="row"><div class="label"><b>Запускать вместе с Windows</b><span>Остров стартует при входе в систему, Launcher при этом не открывается.</span></div>
+    <div class="ctl"><button class="toggle ${state.autostart ? 'on' : ''}" data-act="autostart"></button></div></div></div></section>`;
+  return html;
+}
+function systemHtml() {
+  let html = `<section><h2>Запуск</h2><div class="card">
+    <div class="row"><div class="label"><b>Запускать вместе с Windows</b><span>Для текущего пользователя, без прав администратора. Видно в Диспетчере задач → «Автозагрузка».</span></div>
+      <div class="ctl"><button class="toggle ${state.autostart ? 'on' : ''}" data-act="autostart"></button></div></div>
+    <div class="row"><div class="label"><b>Остров не отвечает</b><span>Если «Остановить» не помогает — завершить процесс принудительно.</span></div>
+      <div class="ctl"><button class="btn danger" data-act="kill">Завершить</button></div></div></div></section>`;
+  html += sectionHtml('Производительность', ['Animations.TargetFPS', 'GameMode.LightweightOverlay', 'Behavior.AutoHideFullscreen'].map((k) => state.byKey[k]).filter(Boolean));
+  html += `<section><h2>Файлы</h2><div class="card">
+    <div class="row"><div class="label"><b>Папка настроек</b><span>${esc(state.settingsPath || '')}</span></div><div class="ctl"><button class="btn" data-open="settingsFolder">Открыть</button><button class="btn" data-open="settingsFile">settings.json</button></div></div>
+    <div class="row"><div class="label"><b>Логи</b><span>Пригодятся, если что-то работает не так.</span></div><div class="ctl"><button class="btn" data-open="logs">Открыть</button></div></div>
+    <div class="row"><div class="label"><b>Сбросить все настройки</b><span>Вернуть значения по умолчанию. Текущий файл сохранится как settings.json.bak.</span></div><div class="ctl"><button class="btn danger" data-act="reset">Сбросить</button></div></div>
+  </div></section>`;
+  return html;
+}
+function aboutHtml() {
+  return `<section><div class="card"><div class="hero"><div class="big-pill on"></div><div class="state"><b>Dynamic Island</b><span>Версия ${esc(state.version)}</span></div></div></div></section>
+  <section><h2>Обновления</h2><div class="card"><div class="row"><div class="label"><b>Проверка обновлений</b><span>Будет добавлена вместе с установщиком (этап 6). Сейчас новые версии — в репозитории на GitHub.</span></div>
+    <div class="ctl"><button class="btn" data-open="repo">GitHub</button></div></div></div></section>
+  <p class="note">Основано на моде Dynamic Island for Windows (Himanshu, MIT) с собственными изменениями. Работает без Windhawk. Telegram и Discord читаются через уведомления Windows — аккаунты и пароли программе не нужны.</p>`;
+}
+
+function render() {
+  const q = $('#q').value.trim().toLowerCase();
+  let html;
+  if (q) {
+    const hits = state.schema.settings.filter((s) => (s.name + ' ' + (s.description || '') + ' ' + s.key).toLowerCase().includes(q));
+    $('#title').textContent = 'Поиск';
+    html = hits.length ? sectionHtml(`Найдено: ${hits.length}`, hits) : `<div class="empty">Ничего не найдено</div>`;
+  } else {
+    const p = PAGES.find((x) => x.id === state.page);
+    $('#title').textContent = p.title;
+    if (p.id === 'home') html = homeHtml();
+    else if (p.id === 'system') html = systemHtml();
+    else if (p.id === 'about') html = aboutHtml();
+    else html = p.groups.map(groupHtml).join('');
+  }
+  const scroll = $('#content').scrollTop;
+  $('#content').innerHTML = html;
+  $('#content').scrollTop = scroll;
+  $('#nav').querySelectorAll('a').forEach((a) => a.classList.toggle('active', !q && a.dataset.p === state.page));
+  $('#brandPill').classList.toggle('on', state.running);
+}
+function refreshDimming() {
+  document.querySelectorAll('[data-row]').forEach((r) => {
+    const rule = activeRule(r.dataset.row);
+    r.classList.toggle('off', !!rule && !rule());
+  });
+}
+
+// ── Saving ──
+const timers = {};
+function save(key, value, delay = 0) {
+  clearTimeout(timers[key]);
+  timers[key] = setTimeout(() => send({ type: 'set', key, value }), delay);
+}
+function onInput(e) {
+  const el = e.target;
+  const key = el.dataset.k; if (!key) return;
+  const t = el.dataset.t;
+  if (t === 'int') { const n = parseInt(el.value, 10); if (!isNaN(n)) save(key, n, 500); }
+  else if (t === 'string') { save(key, el.value, 600); const sw = el.parentElement.querySelector('.swatch'); if (sw) sw.style.background = el.value; }
+  else if (t === 'color') { const txt = el.closest('.ctl').querySelector('.txt'); const alpha = (txt.value.length === 9) ? txt.value.slice(7) : ''; txt.value = el.value.toUpperCase() + alpha; el.parentElement.style.background = txt.value; save(key, txt.value, 250); }
+  else if (t === 'enum') save(key, el.value);
+}
+document.addEventListener('input', onInput);
+document.addEventListener('click', async (e) => {
+  const tg = e.target.closest('.toggle[data-k]');
+  if (tg) { const on = !tg.classList.contains('on'); tg.classList.toggle('on', on); state.values[tg.dataset.k] = on; refreshDimming(); save(tg.dataset.k, on); return; }
+  const segBtn = e.target.closest('.seg button');
+  if (segBtn) { const seg = segBtn.parentElement; seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === segBtn)); state.values[seg.dataset.k] = segBtn.dataset.v; refreshDimming(); save(seg.dataset.k, segBtn.dataset.v); return; }
+  const nav = e.target.closest('nav a');
+  if (nav) { state.page = nav.dataset.p; $('#q').value = ''; $('#content').scrollTop = 0; render(); return; }
+  const op = e.target.closest('[data-open]');
+  if (op) { send({ type: 'open', what: op.dataset.open }); return; }
+  const act = e.target.closest('[data-act]'); if (!act) return;
+  const a = act.dataset.act;
+  if (a === 'autostart') { const on = !act.classList.contains('on'); act.classList.toggle('on', on); send({ type: 'autostart', enabled: on }); }
+  else if (a === 'reset') { if (await confirmBox('Сбросить все настройки?', 'Все параметры вернутся к значениям по умолчанию. Текущий файл сохранится как settings.json.bak.', 'Сбросить')) send({ type: 'reset' }); }
+  else if (a === 'kill') { if (await confirmBox('Завершить остров принудительно?', 'Используйте, только если обычная остановка не помогает. Баннеры Telegram/Discord вернутся при следующем обычном выходе.', 'Завершить')) { state.busy = true; send({ type: 'kill' }); } }
+  else { state.busy = true; render(); send({ type: a }); }
+});
+document.addEventListener('change', (e) => { if (e.target.dataset.t === 'enum') { state.values[e.target.dataset.k] = e.target.value; refreshDimming(); } });
+$('#q').addEventListener('input', render);
+
+// ── Messages from C++ ──
+const ACTION_TEXT = { start: 'Остров запущен', stop: 'Остров остановлен', restart: 'Остров перезапущен', kill: 'Процесс завершён', autostart: 'Сохранено' };
+function onHostMessage(m) {
+  switch (m.type) {
+    case 'init':
+      state.schema = m.schema; state.values = m.values; state.version = m.version; state.problem = m.problem; state.settingsPath = m.settingsPath; state.islandFound = m.islandFound;
+      state.byKey = Object.fromEntries(m.schema.settings.map((s) => [s.key, s]));
+      $('#ver').textContent = 'версия ' + m.version;
+      $('#nav').innerHTML = PAGES.map((p) => `<a data-p="${p.id}">${ICONS[p.id]}<span>${p.title}</span></a>`).join('');
+      render();
+      break;
+    case 'status': {
+      const changed = m.running !== state.running || m.autostart !== state.autostart || state.busy;
+      state.running = m.running; state.autostart = m.autostart; state.busy = false;
+      if (changed && !$('#q').value && ['home', 'system'].includes(state.page)) render(); else $('#brandPill').classList.toggle('on', state.running);
+      break;
+    }
+    case 'saved':
+      state.values = m.values;
+      if (m.ok) { toast('Сохранено'); const r = document.querySelector(`[data-row="${CSS.escape(m.key)}"]`); if (r) { r.classList.remove('flash'); void r.offsetWidth; r.classList.add('flash'); } }
+      else { toast('Не сохранено: недопустимое значение', true); render(); }
+      refreshDimming();
+      break;
+    case 'reset':
+      state.values = m.values; render(); toast(m.ok ? 'Настройки сброшены' : 'Не удалось сбросить', !m.ok);
+      break;
+    case 'action':
+      state.busy = false;
+      if (m.ok) toast(ACTION_TEXT[m.action] || 'Готово');
+      else if (m.action === 'stop' || m.action === 'restart' && !m.error) toast('Остров не ответил. Можно завершить его в разделе «Система».', true);
+      else toast(m.error || 'Не получилось', true);
+      break;
+  }
+}
+if (host) {
+  host.addEventListener('message', (e) => onHostMessage(e.data));
+  send({ type: 'init' });
+  setInterval(() => send({ type: 'status' }), 1500);
+} else if (window.__mock) {
+  window.__mock(onHostMessage);  // design preview outside the app
+}
+</script>
+</body>
+</html>

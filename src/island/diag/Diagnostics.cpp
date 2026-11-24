@@ -11,10 +11,10 @@
 #include <winrt/Windows.UI.Notifications.h>
 #include <winrt/Windows.UI.Notifications.Management.h>
 
-#include "../../shared/Version.h"
-#include "../app/Paths.h"
+#include "common/Version.h"
+#include "common/Paths.h"
 #include "../app/SingleInstance.h"
-#include "../log/Log.h"
+#include "common/Log.h"
 
 namespace di::diag {
 namespace {

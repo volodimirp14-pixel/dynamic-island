@@ -10,14 +10,15 @@
 
 #include <string>
 
-#include "../shared/Version.h"
+#include "common/Version.h"
 #include "Island.h"
 #include "app/Control.h"
-#include "app/Paths.h"
+#include "common/IpcClient.h"
+#include "common/Paths.h"
 #include "app/SingleInstance.h"
 #include "diag/Diagnostics.h"
-#include "log/Log.h"
-#include "settings/Settings.h"
+#include "common/Log.h"
+#include "common/Settings.h"
 #include "settings/SettingsWatcher.h"
 
 namespace {
@@ -56,7 +57,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         return 0;
     }
     if (!command.empty()) {
-        if (!di::control::Send(command)) {
+        if (!di::ipc::Send(command)) {
             Message(L"Dynamic Island не запущен.", MB_ICONINFORMATION);
             return 1;
         }
@@ -68,7 +69,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     di::SingleInstance instance;
     if (!instance.IsFirst()) {
         // Double-click on the shortcut while it runs: just bring it back if hidden.
-        if (di::control::Send(L"show")) {
+        if (di::ipc::Send(L"show")) {
             DI_LOG(L"Already running; asked it to show itself.");
             return 0;
         }

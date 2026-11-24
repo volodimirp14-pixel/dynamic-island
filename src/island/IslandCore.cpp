@@ -88,10 +88,10 @@
 #endif
 
 #include "Island.h"
-#include "../shared/Version.h"
-#include "app/Paths.h"
-#include "log/Log.h"
-#include "settings/Settings.h"
+#include "common/Version.h"
+#include "common/Paths.h"
+#include "common/Log.h"
+#include "common/Settings.h"
 
 using Microsoft::WRL::ComPtr;
 using namespace std::chrono_literals;
@@ -8833,7 +8833,7 @@ void ShowContextMenu(HWND hwnd, POINT screenPoint) {
                 kThemeMenuIdBase + static_cast<UINT>(kCustomThemeIndex), L"Custom Colors");
     AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(themeMenu), L"Theme");
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING, 9, L"Настройки (settings.json)");
+    AppendMenuW(menu, MF_STRING, 9, L"Настройки…");
     AppendMenuW(menu, MF_STRING, 97, L"Выйти из Dynamic Island");  // standalone: there is no Windhawk to switch it off
 
     SetForegroundWindow(hwnd);
@@ -8909,13 +8909,22 @@ void ShowContextMenu(HWND hwnd, POINT screenPoint) {
             }
             break;
         case 9: {
-            // Opens settings.json in Notepad; changes apply as soon as it is saved
-            // (SettingsWatcher). Stage 3 replaces this with the Launcher.
-            const std::wstring path = di::settings::FilePath();
-            HINSTANCE result = ShellExecuteW(nullptr, L"open", L"notepad.exe",
-                                             (L"\"" + path + L"\"").c_str(), nullptr, SW_SHOWNORMAL);
+            // Opens the Launcher (next to DynamicIsland.exe). Without it, settings.json
+            // in Notepad -- changes apply as soon as the file is saved.
+            wchar_t exe[MAX_PATH] = {};
+            const DWORD n = GetModuleFileNameW(nullptr, exe, MAX_PATH);
+            std::wstring launcher(exe, n);
+            launcher = launcher.substr(0, launcher.find_last_of(L'\\') + 1) + L"DynamicIslandLauncher.exe";
+            HINSTANCE result = nullptr;
+            if (GetFileAttributesW(launcher.c_str()) != INVALID_FILE_ATTRIBUTES) {
+                result = ShellExecuteW(nullptr, L"open", launcher.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+            } else {
+                const std::wstring path = di::settings::FilePath();
+                result = ShellExecuteW(nullptr, L"open", L"notepad.exe", (L"\"" + path + L"\"").c_str(), nullptr,
+                                       SW_SHOWNORMAL);
+            }
             if (reinterpret_cast<INT_PTR>(result) <= 32) {
-                DI_LOG(L"Failed to open %s.", path.c_str());
+                DI_LOG(L"Failed to open the settings (%s).", launcher.c_str());
             }
             break;
         }
