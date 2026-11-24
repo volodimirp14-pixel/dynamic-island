@@ -3254,17 +3254,18 @@ struct PillClientRect {
 PillClientRect g_pillClientRect;
 
 // ── Standalone 0.10: move the island along X ────────────────────────────────
-// Hold the right mouse button on the island: after a moment it starts to wiggle
+// Hold the LEFT mouse button on the island (standalone 0.10.1; was the right
+// button in 0.10.0): after a moment it starts to wiggle
 // (like iOS edit mode) and follows the cursor horizontally. Near the screen centre
 // it snaps exactly to the middle. On release the position is saved
 // (Appearance.OffsetX, the same value as in the Launcher).
 namespace IslandMove {
 
 constexpr UINT_PTR kHoldTimerId = 0x4D56;  // "MV"
-constexpr UINT kHoldMs = 450;
+constexpr UINT kHoldMs = 550;  // longer than a swipe / tap (500 ms), so those still work
 constexpr int kCancelSlopPx = 8;           // moving this far before the hold ends = no move
 
-std::atomic<bool> g_armed{false};          // right button down, waiting for the hold
+std::atomic<bool> g_armed{false};          // left button down, waiting for the hold
 std::atomic<bool> g_active{false};         // wiggling and following the cursor
 std::atomic<double> g_activeSince{0.0};
 std::atomic<double> g_snapPauseUntil{0.0}; // wiggle stops briefly when it snaps to the centre
@@ -3297,9 +3298,19 @@ void Arm(HWND hwnd) {
     SetTimer(hwnd, kHoldTimerId, kHoldMs, nullptr);
 }
 
+// The press turned out to be a click, swipe or scrub: stop waiting for the hold.
+void Disarm(HWND hwnd) {
+    KillTimer(hwnd, kHoldTimerId);
+    g_armed = false;
+}
+
 void Begin(HWND hwnd) {
     KillTimer(hwnd, kHoldTimerId);
     if (!g_armed.exchange(false)) return;
+    // The press is now a move: a held media button / source must not fire on release.
+    if (g_pressedMediaButton.exchange(-1) != -1) g_layoutDirty = true;
+    if (g_pressedSourceSlot.exchange(-1) != -1) g_layoutDirty = true;
+    if (GetCapture() != hwnd) SetCapture(hwnd);
     {
         std::lock_guard lock(g_settingsMutex);
         g_startOffset = g_settings.offsetX;
@@ -3316,9 +3327,12 @@ void Follow(HWND hwnd) {
     GetCursorPos(&pt);
     if (!Active()) {
         if (g_armed.load() && (std::abs(pt.x - g_downPt.x) > kCancelSlopPx || std::abs(pt.y - g_downPt.y) > kCancelSlopPx)) {
-            g_armed = false;  // the user is doing something else
+            g_armed = false;  // the user is doing something else (swipe, scrub, button)
             KillTimer(hwnd, kHoldTimerId);
-            if (GetCapture() == hwnd) ReleaseCapture();
+            // Keep the capture if a media button or the track bar owns this press.
+            if (GetCapture() == hwnd && !g_scrubbing.load() && g_pressedMediaButton.load() == -1) {
+                ReleaseCapture();
+            }
         }
         return;
     }
@@ -16147,6 +16161,8 @@ LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 s_touchStart.x = xPos;
                 s_touchStart.y = yPos;
                 s_touchStartTime = GetTickCount64();
+                // Standalone 0.10.1: a long press moves the island (see IslandMove).
+                IslandMove::Arm(hwnd);
 
                 bool mediaActive = false;
                 {
@@ -16178,6 +16194,7 @@ LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
                     const float fraction = MediaScrubFractionFromContent(cp);
                     if (fraction >= 0.0f) {
+                        IslandMove::Disarm(hwnd);  // pressing the track bar scrubs, never moves
                         g_scrubDragFraction.store(fraction, std::memory_order_relaxed);
                         g_scrubbing = true;
                         g_lastLiveSeekTime = 0.0;
@@ -16280,6 +16297,17 @@ LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
         case WM_LBUTTONUP:
             {
+                if (IslandMove::Active()) {
+                    IslandMove::End(hwnd);  // finished moving: this release is not a click
+                    s_touchStartTime = 0;
+                    return 0;
+                }
+                if (IslandMove::g_armed.load()) {
+                    IslandMove::Disarm(hwnd);  // a normal click / tap
+                    if (GetCapture() == hwnd && !g_scrubbing.load() && g_pressedMediaButton.load() == -1) {
+                        ReleaseCapture();
+                    }
+                }
                 if (g_scrubbing.load()) {
                     g_scrubbing = false;
                     ReleaseCapture();
@@ -16510,9 +16538,7 @@ LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         }
 
         case WM_RBUTTONDOWN:
-            // Standalone 0.10: long press starts moving the island (see IslandMove).
-            IslandMove::Arm(hwnd);
-            return 0;
+            return 0;  // standalone 0.5: the right button does nothing on the island
 
         case WM_TIMER:
             if (wParam == IslandMove::kHoldTimerId) {
@@ -16525,10 +16551,6 @@ LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             // Standalone 0.5: no right-click menu. Everything it offered is in the
             // Launcher (gear), on the island (Do Not Disturb, power) or a hotkey;
             // returning here also keeps DefWindowProc from sending WM_CONTEXTMENU.
-            IslandMove::End(hwnd);
-            if (GetCapture() == hwnd && !g_scrubbing.load() && g_pressedMediaButton.load() == -1) {
-                ReleaseCapture();
-            }
             return 0;
 
         case WM_DPICHANGED:
