@@ -2,9 +2,9 @@
 // Single place for the app version. Bumped together with docs/CHANGELOG.md.
 #define DI_VERSION_MAJOR 0
 #define DI_VERSION_MINOR 2
-#define DI_VERSION_PATCH 0
-#define DI_VERSION_STRING_W L"0.2.0-alpha"
-#define DI_VERSION_STRING_A "0.2.0-alpha"
+#define DI_VERSION_PATCH 1
+#define DI_VERSION_STRING_W L"0.2.1-alpha"
+#define DI_VERSION_STRING_A "0.2.1-alpha"
 
 namespace di {
 inline constexpr const wchar_t* kAppName = L"Dynamic Island";

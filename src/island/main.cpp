@@ -63,14 +63,25 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         return 0;
     }
 
+    DI_LOG(L"Dynamic Island %s starting (pid %lu).", di::kAppVersion, GetCurrentProcessId());
+
     di::SingleInstance instance;
     if (!instance.IsFirst()) {
         // Double-click on the shortcut while it runs: just bring it back if hidden.
-        di::control::Send(L"show");
-        return 0;
+        if (di::control::Send(L"show")) {
+            DI_LOG(L"Already running; asked it to show itself.");
+            return 0;
+        }
+        // The mutex is held by a process that does not answer commands: an
+        // older build (e.g. the 0.1.0 check window still open) or a hung island.
+        DI_LOG(L"Another DynamicIsland.exe holds the instance lock but does not answer; not starting.");
+        Message(L"Уже запущена другая копия DynamicIsland.exe, которая не отвечает "
+                L"(например, старая проверочная версия с открытым окном).\n\n"
+                L"Закройте её: Диспетчер задач (Ctrl+Shift+Esc) → «DynamicIsland.exe» → «Снять задачу», "
+                L"и запустите программу снова.",
+                MB_ICONWARNING);
+        return 1;
     }
-
-    DI_LOG(L"Dynamic Island %s starting (pid %lu).", di::kAppVersion, GetCurrentProcessId());
 
     if (di::IsWindhawkIslandRunning()) {
         DI_LOG(L"The Windhawk mod version of the island is running; not starting a second island.");
