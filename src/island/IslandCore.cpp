@@ -425,7 +425,7 @@ enum class ThemePreset {
     Custom,
 };
 
-// One table drives the settings dropdown, the right-click menu labels and the
+// One table drives the settings dropdown, the palette names and the
 // resolved colors. It used to be three separate lists, which is how the menu
 // ended up carrying special cases for palette indexes that no longer matched.
 //
@@ -434,7 +434,7 @@ enum class ThemePreset {
 // surface behind them.
 struct ThemePalette {
     const wchar_t* id;      // value stored in Themes.ThemePreset
-    const wchar_t* label;   // right-click menu label
+    const wchar_t* label;   // human-readable palette name
     const wchar_t* bg;
     const wchar_t* fg;
     const wchar_t* sec;
@@ -1023,7 +1023,7 @@ std::atomic<bool> g_clickExpanded = false;
 std::atomic<int> g_pressedMediaButton = -1;
 std::atomic<int> g_hoveredMediaButton = -1;
 
-// Media source selection (source dock + right-click submenu).
+// Media source selection (source dock).
 std::mutex g_mediaSourceMutex;                     // leaf lock for the two strings below
 std::wstring g_preferredMediaSource;               // AUMID the user picked; empty = Auto
 std::wstring g_dockOverrideAumid;                  // temporary pick from the dock; guarded by g_mediaSourceMutex
@@ -2383,7 +2383,7 @@ void LoadSettings() {
     }
 
     // Color settings — check local theme override first, then settings YAML.
-    // Palettes live in kThemePalettes at file scope so the right-click menu
+    // Palettes live in kThemePalettes at file scope so other code
     // resolves the same colors and labels this does.
     //
     // A custom hex field counts as an intentional override once it differs from
@@ -8739,7 +8739,7 @@ void DismissTransientState() {
     g_progressPercent.store(-1);
 }
 
-// ── Media source menu (right-click submenu and the dock's "+N" list) ─────────
+// ── Media source menu (the dock's "+N" list) ─────────────────────────────────
 static constexpr UINT kMediaSourceMenuIdBase = 100;  // 100 = Auto, 101.. = sources
 
 // Shape style submenu: +0 = iPhone pill, +1 = Windows 11 flyout, +2 = macOS notch.
