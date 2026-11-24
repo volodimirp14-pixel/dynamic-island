@@ -6444,7 +6444,6 @@ int TryReadClassicBluetoothBatteryPercent(uint64_t address) {
     wchar_t addrHex[16] = {};
     swprintf_s(addrHex, L"%012llX", static_cast<unsigned long long>(address));
     const std::wstring addrLower = ToLowerCopy(addrHex);
-    DI_LOG(L"BT battery: searching devnodes for address %s", addrLower.c_str());
 
     // Enumerate everything the Bluetooth bus driver (BTHENUM) exposes,
     // regardless of which device setup class it landed in. This is broader
@@ -6464,7 +6463,6 @@ int TryReadClassicBluetoothBatteryPercent(uint64_t address) {
     }
 
     int result = -1;
-    int matchedCount = 0;
     SP_DEVINFO_DATA devInfoData = {};
     devInfoData.cbSize = sizeof(devInfoData);
 
@@ -6479,27 +6477,19 @@ int TryReadClassicBluetoothBatteryPercent(uint64_t address) {
             continue;
         }
 
-        ++matchedCount;
-        DI_LOG(L"BT battery: matched devnode %s", instanceId);
 
         DEVPROPTYPE propType = 0;
         BYTE battery = 0;
         DWORD required = 0;
         if (SetupDiGetDevicePropertyW(deviceInfoSet, &devInfoData, &PKEY_Bluetooth_Battery,
                                       &propType, &battery, sizeof(battery), &required, 0)) {
-            DI_LOG(L"BT battery: property present on this devnode, type=%lu value=%u", propType, battery);
             if (propType == DEVPROP_TYPE_BYTE && battery != 0xFF) {
                 result = ClampInt(static_cast<int>(battery), 0, 100);
                 break;
             }
-        } else {
-            DI_LOG(L"BT battery: PKEY_Bluetooth_Battery not set on this devnode yet (error 0x%lx).", GetLastError());
         }
     }
 
-    if (matchedCount == 0) {
-        DI_LOG(L"BT battery: no devnode instance ID contained address %s.", addrLower.c_str());
-    }
 
     SetupDiDestroyDeviceInfoList(deviceInfoSet);
     return result;
@@ -6629,13 +6619,28 @@ Reading Decode(Model model, BYTE status) {
 std::optional<Reading> ReadPad(const wchar_t* path, Model model, bool bluetooth, bool allowFullReport) {
     HANDLE h = CreateFileW(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
                            OPEN_EXISTING, FILE_FLAG_OVERLAPPED, nullptr);
-    if (h == INVALID_HANDLE_VALUE) return std::nullopt;
+    if (h == INVALID_HANDLE_VALUE) {
+        DI_LOG(L"[Pad] cannot open the pad (error %lu).", GetLastError());
+        return std::nullopt;
+    }
+    const wchar_t* modelName = model == Model::DualSense ? L"DualSense" : L"DualShock 4";
 
+    // Windows queues up to 32 old input reports per handle, so after switching
+    // the pad to the full report the first reads can still be short ones: keep
+    // reading (up to ~1 s) until a report with the battery byte arrives.
     BYTE buf[128] = {};
     std::optional<Reading> result;
-    for (int attempt = 0; attempt < 2 && !result; ++attempt) {
-        const DWORD got = ReadReport(h, buf, sizeof(buf), 250);
+    bool requested = false;
+    std::wstring seen;
+    const ULONGLONG deadline = GetTickCount64() + 1000;
+    while (!result && GetTickCount64() < deadline) {
+        const DWORD got = ReadReport(h, buf, sizeof(buf), 200);
         if (got == 0) break;
+        if (seen.size() < 24) {
+            wchar_t id[8];
+            swprintf_s(id, L"%02X ", buf[0]);
+            seen += id;
+        }
         if (model == Model::DualSense) {
             if (buf[0] == 0x01 && !bluetooth && got > 53) result = Decode(model, buf[53]);      // USB
             else if (buf[0] == 0x31 && got > 54) result = Decode(model, buf[54]);               // Bluetooth, full report
@@ -6643,21 +6648,33 @@ std::optional<Reading> ReadPad(const wchar_t* path, Model model, bool bluetooth,
             if (buf[0] == 0x01 && !bluetooth && got > 30) result = Decode(model, buf[30]);      // USB
             else if (buf[0] == 0x11 && got > 32) result = Decode(model, buf[32]);               // Bluetooth, full report
         }
-        if (!result && bluetooth && attempt == 0) {
+        if (!result && bluetooth && !requested && buf[0] == 0x01) {
             if (!allowFullReport) break;
-            // Short Bluetooth report: ask for the calibration feature report once,
-            // which switches the pad to the full report (as Steam/SDL do).
+            // Short Bluetooth report: reading the calibration feature report
+            // switches the pad to the full report (as Steam/SDL do).
+            requested = true;
             BYTE feature[80] = {};
             feature[0] = model == Model::DualSense ? 0x05 : 0x02;
             const ULONG len = model == Model::DualSense ? 41 : 37;
-            if (!HidD_GetFeature(h, feature, len)) break;
-            DI_LOG(L"[Pad] requested the full report from a %s over Bluetooth.",
-                   model == Model::DualSense ? L"DualSense" : L"DualShock 4");
-            Sleep(30);
+            const BOOL ok = HidD_GetFeature(h, feature, len);
+            DI_LOG(L"[Pad] %s over Bluetooth sends the short report; full report requested: %s.", modelName,
+                   ok ? L"ok" : L"failed");
+            if (!ok) break;
         }
     }
     CloseHandle(h);
-    if (result) result->bluetooth = bluetooth;
+    if (result) {
+        result->bluetooth = bluetooth;
+        static int s_lastLogged = -2;
+        if (result->percent != s_lastLogged) {
+            s_lastLogged = result->percent;
+            DI_LOG(L"[Pad] %s battery %d%%%s (%s).", modelName, result->percent,
+                   result->charging ? L", charging" : L"", bluetooth ? L"Bluetooth" : L"USB");
+        }
+    } else {
+        DI_LOG(L"[Pad] %s: no battery in the reports (report ids seen: %s).", modelName,
+               seen.empty() ? L"none" : seen.c_str());
+    }
     return result;
 }
 
@@ -6836,7 +6853,8 @@ void HandleBluetoothConnected(
     // query the device. Keep retrying in the background for a while; if a
     // value shows up and this connection is still the one being displayed,
     // patch it into the live state and re-render.
-    if (g_settings.bluetoothShowBattery && snapshot.batteryPercent < 0) {
+    if (g_settings.bluetoothShowBattery && snapshot.batteryPercent < 0 &&
+        !(category == BluetoothDeviceCategory::Gamepad && SonyPad::LooksLikeSonyPad(name))) {
         std::thread([deviceId, myGeneration]() {
             winrt::init_apartment(winrt::apartment_type::multi_threaded);
             for (int attempt = 0; attempt < 6; ++attempt) {
@@ -6932,7 +6950,10 @@ DWORD WINAPI BluetoothThreadProc(void*) {
     // disconnect — no property polling or IsConnected lookups required.
     auto startWatcher = [&](winrt::hstring const& selector, const wchar_t* label) {
         try {
-            DeviceWatcher watcher = DeviceInformation::CreateWatcher(selector);
+            // Standalone 0.7.1: ask for IsConnected so the watcher re-evaluates it;
+            // without it a device switched off was never reported as removed.
+            auto props = winrt::single_threaded_vector<winrt::hstring>({L"System.Devices.Aep.IsConnected"});
+            DeviceWatcher watcher = DeviceInformation::CreateWatcher(selector, props);
             auto enumDone = std::make_shared<std::atomic<bool>>(false);
 
             watcher.EnumerationCompleted(
@@ -6965,6 +6986,19 @@ DWORD WINAPI BluetoothThreadProc(void*) {
                 HandleBluetoothConnected(info, deviceCache, cacheMutex);
             });
 
+            watcher.Updated([&cacheMutex, &connectedIds, &nextBatteryRefresh](
+                                DeviceWatcher const&, DeviceInformationUpdate const& update) {
+                auto value = update.Properties().TryLookup(L"System.Devices.Aep.IsConnected");
+                if (!value) return;
+                const auto connected = value.try_as<winrt::Windows::Foundation::IReference<bool>>();
+                if (!connected) return;
+                std::lock_guard lock(cacheMutex);
+                const std::wstring id = update.Id().c_str();
+                if (connected.Value()) connectedIds.insert(id);
+                else connectedIds.erase(id);
+                nextBatteryRefresh.store(NowSeconds() + (connected.Value() ? 4.0 : 0.0));
+            });
+
             watcher.Removed([&deviceCache, &cacheMutex, &connectedIds, &nextBatteryRefresh](
                                 DeviceWatcher const&, DeviceInformationUpdate const& update) {
                 {
@@ -6995,7 +7029,40 @@ DWORD WINAPI BluetoothThreadProc(void*) {
     // until shutdown is signaled.
     // Standalone 0.7: battery badge -- re-read every 60 s (and soon after a
     // connect/disconnect). A handful of quick property reads, no busy polling.
+    double nextConnectionCheck = NowSeconds() + 10.0;
     while (WaitForSingleObject(g_stopEvent, 1000) == WAIT_TIMEOUT) {
+        // Standalone 0.7.1: safety net -- ask Windows directly every 10 s whether
+        // each listed device is still connected (watchers can miss a switch-off).
+        if (NowSeconds() >= nextConnectionCheck) {
+            nextConnectionCheck = NowSeconds() + 10.0;
+            std::vector<std::wstring> ids;
+            {
+                std::lock_guard lock(cacheMutex);
+                ids.assign(connectedIds.begin(), connectedIds.end());
+            }
+            for (const std::wstring& id : ids) {
+                bool stillConnected = true;
+                try {
+                    if (auto classic = BluetoothDevice::FromIdAsync(winrt::hstring(id)).get()) {
+                        stillConnected = classic.ConnectionStatus() == BluetoothConnectionStatus::Connected;
+                    } else if (auto le = BluetoothLEDevice::FromIdAsync(winrt::hstring(id)).get()) {
+                        stillConnected = le.ConnectionStatus() == BluetoothConnectionStatus::Connected;
+                    }
+                } catch (...) {
+                    try {
+                        if (auto le = BluetoothLEDevice::FromIdAsync(winrt::hstring(id)).get()) {
+                            stillConnected = le.ConnectionStatus() == BluetoothConnectionStatus::Connected;
+                        }
+                    } catch (...) {
+                    }
+                }
+                if (!stillConnected) {
+                    std::lock_guard lock(cacheMutex);
+                    connectedIds.erase(id);
+                    nextBatteryRefresh.store(NowSeconds());
+                }
+            }
+        }
         if (NowSeconds() < nextBatteryRefresh.load()) {
             continue;
         }
@@ -9564,8 +9631,7 @@ class Renderer {
     };
     TextWidthCache idleClockWidthCache_;
     TextWidthCache idleWeatherWidthCache_;
-    TextWidthCache btNameWidthCache_;  // standalone 0.7: Bluetooth badge
-    TextWidthCache btPctWidthCache_;
+    TextWidthCache btPctWidthCache_;  // standalone 0.7: Bluetooth badge
 
     float MeasureTextWidthCached(const std::wstring& text, IDWriteTextFormat* fmt,
                                  TextWidthCache& cache) {
@@ -12167,7 +12233,7 @@ class Renderer {
                 // Standalone 0.7: Bluetooth accessories + battery, top-left of the clock tab.
                 if (settings.bluetoothDashboard && !activeTabs.empty() && activeTabId == activeTabs.front()) {
                     DrawBluetoothBadges(state, fullRect.left + 24.0f, fullRect.top + QuietToggleLayout::kCenterY,
-                                        fullRect.right - 150.0f, /*allowName=*/true);
+                                        fullRect.right - 150.0f);
                 }
             });
 
@@ -13008,8 +13074,7 @@ class Renderer {
                 if (settings.bluetoothDashboard && !activeTabs.empty() && activeTabId == activeTabs.front()) {
                     DrawBluetoothBadges(state,
                                         rect.left + MediaLayout::kArtInsetX + MediaLayout::kArtSize + 16.0f,
-                                        rect.top + QuietToggleLayout::kCenterY - 6.0f, rect.right - 150.0f,
-                                        /*allowName=*/false);
+                                        rect.top + QuietToggleLayout::kCenterY - 6.0f, rect.right - 150.0f);
                 }
             });
             DrawTabPagination(rect, maxTabs);
@@ -14745,14 +14810,12 @@ class Renderer {
     }
 
     // Standalone 0.7: connected Bluetooth accessories with their battery, top-left
-    // of the first tab (clock / player). One device on the clock tab: icon, name,
-    // battery. Several, or the player tab: compact chips (icon + battery).
-    void DrawBluetoothBadges(const SharedState& state, float left, float cy, float maxRight, bool allowName) {
+    // of the first tab (clock / player): icon + battery per device (no names).
+    void DrawBluetoothBadges(const SharedState& state, float left, float cy, float maxRight) {
         const std::vector<BluetoothBatteryItem>& items = state.bluetoothBatteries;
         if (items.empty() || !smallTextFormat_ || !iconFormat_ || maxRight - left < 40.0f) {
             return;
         }
-        const bool withName = allowName && items.size() == 1;
         const DWRITE_TEXT_ALIGNMENT oldAlign = smallTextFormat_->GetTextAlignment();
         const DWRITE_PARAGRAPH_ALIGNMENT oldPara = smallTextFormat_->GetParagraphAlignment();
         smallTextFormat_->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
@@ -14765,17 +14828,6 @@ class Renderer {
 
             DrawBluetoothCategoryIcon(D2D1::RectF(x, cy - 10.0f, x + 18.0f, cy + 10.0f), it.category);
             x += 22.0f;
-
-            if (withName) {
-                const float nameW = std::min(118.0f, maxRight - x - (it.percent >= 0 ? 60.0f : 0.0f));
-                if (nameW > 24.0f) {
-                    mutedBrush_->SetOpacity(0.85f * settingsOpacity_);
-                    target_->DrawTextW(it.name.c_str(), static_cast<UINT32>(it.name.size()), smallTextFormat_.Get(),
-                                       D2D1::RectF(x, cy - 9.0f, x + nameW, cy + 9.0f), mutedBrush_.Get(),
-                                       D2D1_DRAW_TEXT_OPTIONS_CLIP);
-                    x += std::min(nameW, MeasureTextWidthCached(it.name, smallTextFormat_.Get(), btNameWidthCache_)) + 8.0f;
-                }
-            }
 
             if (it.percent >= 0) {
                 // Battery outline + fill + tip. Red at 20 % and below, green while charging.
