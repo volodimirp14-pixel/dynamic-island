@@ -28,6 +28,13 @@
 Файлы пользователя: `%APPDATA%\DynamicIsland\settings.json`, `state.json`; логи — `%LOCALAPPDATA%\DynamicIsland\logs\`.
 Ключи настроек те же, что были в Windhawk (`Telegram.Enabled`, `Themes.BackdropMaterial` …). Новая настройка = запись в `src/common/settings_schema.json` (ключ, тип, значение по умолчанию, название и подсказка по-русски) + чтение `di::settings::GetInt/GetString` в `LoadSettings()`. Launcher покажет её сам; раздел и подраздел задаются в `ui/index.html` (`PAGES`, `SUBSECTIONS`), условия активности — `ACTIVE_IF`.
 
+### Bluetooth-значок (автономная версия, 0.7–0.8)
+- Состояние: `BluetoothRegistry` / `Bt()` (никогда не освобождается): известные устройства, подключённые сейчас, срок следующего обновления значка.
+- Поток `BluetoothThreadProc`: два `DeviceWatcher` (classic, BLE; с `System.Devices.Aep.IsConnected`), раз в секунду — проверка подключения (каждые 10 с или перед обновлением значка) и `RefreshBluetoothBadge` (раз в 60 с; 5 с, пока подключены наушники; события сдвигают раньше).
+- Наушники/колонки показываются, только пока у Windows есть активное звуковое устройство с их именем (AirPods держат связь и в кейсе). LE-«тени» наушников отбрасываются.
+- Заряд: DualSense/DualShock 4 — HID-отчёт (`SonyPad`), AirPods/Beats — BLE-рассылки Apple (`AirPodsBattery`, слушается только пока они подключены), остальные — свойство Windows `{104EA319…} 2` или GATT Battery Service. Кэш на устройство — 60 с.
+- Все вызовы WinRT — через `AwaitOr` с тайм-аутом.
+
 Ниже — описание Windhawk-версии; внутреннее устройство острова (разделы 2–5) в автономной версии то же.
 
 ## 1. Исходный проект
