@@ -13,15 +13,20 @@
 |---|---|---|
 | Точка входа | `src/island/main.cpp` | аргументы (`--quit/--reload/--show/--progress N/--diagnose`), один экземпляр, проверка Windhawk-копии, цикл сообщений |
 | Остров | `src/island/IslandCore.cpp` + `Island.h` | весь код мода (рендер, анимации, источники данных, Telegram/Discord, игры); API `di::island::Start/Stop/ApplySettings/Show/SetProgress` |
-| Настройки | `src/island/settings/` | `settings.json` по схеме `src/shared/settings_schema.json` (встроена в exe), `state.json`, слежение за файлом |
-| Команды | `src/island/app/Control.*`, `src/shared/Ipc.h` | скрытое окно `DynamicIsland.Control`, `WM_COPYDATA` |
-| Лог | `src/island/log/` | `%LOCALAPPDATA%\DynamicIsland\logs\island.log`, 5 МБ × 3 |
+| Слежение за настройками | `src/island/settings/` | перечитывает `settings.json` после сохранения |
+| Команды | `src/island/app/Control.*`, `src/common/Ipc.h` | скрытое окно `DynamicIsland.Control`, `WM_COPYDATA` |
+| Лог | `src/common/Log.*` | `%LOCALAPPDATA%\DynamicIsland\logs\island.log`, 5 МБ × 3 |
 | Проверка | `src/island/diag/` | окно `--diagnose` |
 | Ресурсы | `res/` | манифест (PerMonitorV2, UTF-8, asInvoker), версия, схема |
-| Скрипты переноса | `tools/` | `yaml_to_schema.py`, `port_core.py` |
+| Общая библиотека | `src/common/` | пути, лог, настройки (`Settings.*`, схема `settings_schema.json`), клиент команд `IpcClient`, версия |
+| Launcher | `src/launcher/` | `main.cpp` (окно + WebView2 + обработка сообщений страницы), `IslandProcess` (запуск/остановка острова), `Autostart` (ключ Run), `ui/index.html` (весь интерфейс) |
+| Скрипты | `tools/` | `yaml_to_schema.py`, `port_core.py`, `translate_schema.py` |
+
+**Launcher ↔ страница:** `chrome.webview.postMessage` (JSON). Страница → C++: `init`, `status`, `set {key,value}`, `reset`, `start`, `stop`, `restart`, `kill`, `autostart {enabled}`, `open {what}`. C++ → страница: `init {schema, values, version…}`, `status {running, autostart}`, `saved`, `reset`, `action`.
+**Launcher ↔ остров:** запись `settings.json` + команда `reload` (`WM_COPYDATA`), `quit` для остановки; запуск — `CreateProcess` соседнего `DynamicIsland.exe`.
 
 Файлы пользователя: `%APPDATA%\DynamicIsland\settings.json`, `state.json`; логи — `%LOCALAPPDATA%\DynamicIsland\logs\`.
-Ключи настроек те же, что были в Windhawk (`Telegram.Enabled`, `Themes.BackdropMaterial` …). Новая настройка = запись в `settings_schema.json` + чтение `di::settings::GetInt/GetString` в `LoadSettings()`.
+Ключи настроек те же, что были в Windhawk (`Telegram.Enabled`, `Themes.BackdropMaterial` …). Новая настройка = запись в `src/common/settings_schema.json` (ключ, тип, значение по умолчанию, название и подсказка по-русски) + чтение `di::settings::GetInt/GetString` в `LoadSettings()`. Launcher покажет её сам; раздел и подраздел задаются в `ui/index.html` (`PAGES`, `SUBSECTIONS`), условия активности — `ACTIVE_IF`.
 
 Ниже — описание Windhawk-версии; внутреннее устройство острова (разделы 2–5) в автономной версии то же.
 

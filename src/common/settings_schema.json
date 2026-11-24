@@ -533,8 +533,8 @@
     {
       "key": "Themes.LiquidGlassStyle",
       "group": "Themes",
-      "name": "Liquid Glass - стиль",
-      "description": "Работает, только когда в \"Backdrop material\" выбрано Liquid Glass. \"С тонировкой\" - стекло слегка размывает то, что за ним (нужны \"Эффекты прозрачности\" Windows). \"Прозрачное\" - как вариант Clear в iOS 26.1 - без размытия, видно рабочий стол, работает даже без эффектов прозрачности.",
+      "name": "Liquid Glass — стиль",
+      "description": "«С тонировкой» — стекло слегка размывает то, что за ним (нужны «Эффекты прозрачности» Windows). «Прозрачное» — как Clear в iOS 26.1: без размытия, работает и без эффектов прозрачности.",
       "type": "enum",
       "options": [
         {
@@ -551,7 +551,7 @@
     {
       "key": "Themes.LiquidGlassClarity",
       "group": "Themes",
-      "name": "Liquid Glass - прозрачность стекла",
+      "name": "Liquid Glass — прозрачность стекла",
       "description": "0 - 100. Чем больше, тем прозрачнее стекло и тем сильнее видно фон. Если на светлых обоях плохо читается текст, уменьшите.",
       "type": "int",
       "default": 60
@@ -559,7 +559,7 @@
     {
       "key": "Themes.LiquidGlassShine",
       "group": "Themes",
-      "name": "Liquid Glass - блики и края",
+      "name": "Liquid Glass — блики и края",
       "description": "0 - 200. Сила бликов, светлой кромки и толщины стекла по краям.",
       "type": "int",
       "default": 100
