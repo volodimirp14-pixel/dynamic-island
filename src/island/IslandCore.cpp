@@ -456,16 +456,6 @@ static constexpr ThemePalette kThemePalettes[] = {
 // cannot leave a stale literal behind.
 static constexpr int kCustomThemeIndex = static_cast<int>(ARRAYSIZE(kThemePalettes));
 
-// Persisted under a new key. Retiring the original palettes renumbered these
-// integers, and reusing "ColorTheme" would have silently reinterpreted a saved
-// 4 (previously Custom) as the palette that now sits at index 4.
-static constexpr const wchar_t* kThemeValueName = L"ColorThemeV2";
-static constexpr const wchar_t* kLegacyThemeValueName = L"ColorTheme";
-
-// Base menu command id for the theme submenu; entries occupy
-// [kThemeMenuIdBase, kThemeMenuIdBase + kCustomThemeIndex].
-static constexpr UINT kThemeMenuIdBase = 20;
-
 // Maps a preset id to its palette index, accepting the retired ids too: a
 // user's stored setting keeps its old string after the option disappears from
 // the dropdown, so each legacy id is pointed at the new palette closest to it.
@@ -1074,17 +1064,17 @@ std::atomic<uint64_t> g_bluetoothConnectGeneration = 0;
 std::atomic<bool> g_isDnDActive = false;
 void* g_wnfDndSubscription = nullptr;
 
-std::atomic<bool> g_gameOverlayPinned{false};
-
 // Custom fork, Feature 3: the island's own Do Not Disturb. Persisted as the
 // "QuietMode" value. While on, the island is fully hidden and notifications are
 // dropped. g_quietHideAt lets the "On" confirmation pill finish before hiding.
 std::atomic<bool> g_quietMode{false};
+// Standalone 0.5: the power button. The island shrinks away exactly like Do Not
+// Disturb, then the program quits (the main thread runs the normal shutdown).
+std::atomic<bool> g_exitRequested{false};
 std::atomic<double> g_quietHideAt{0.0};    // when the shrink animation starts
 std::atomic<bool> g_quietCollapsed{false};  // shrink finished -> window hidden
 bool g_quietHotkeyRegistered = false;
 std::atomic<bool> g_pinnedExpanded{false};
-std::atomic<int> g_pillOpacityOverride{-1};
 
 constexpr GUID kSubTypeIeeeFloat = {
     0x00000003,
@@ -1515,9 +1505,18 @@ namespace QuietToggleLayout {
     constexpr float kTrackH = 20.0f;
     constexpr float kMoonGap = 6.0f;      // track left edge -> moon glyph right edge
     constexpr float kMoonW = 16.0f;
-    constexpr float kGearGap = 10.0f;     // moon glyph left edge -> gear right edge (standalone 0.4)
-    constexpr float kGearW = 16.0f;
+    // Standalone 0.4/0.5: round buttons left of the moon -- settings (gear), then power.
+    constexpr float kBtnD = 24.0f;        // circle diameter
+    constexpr float kBtnGap = 9.0f;       // moon glyph left edge -> gear circle right edge
+    constexpr float kBtnSpacing = 8.0f;   // gear circle left edge -> power circle right edge
+
+    // Centre x of button `i` (0 = gear, 1 = power), from the moon's left edge.
+    inline float ButtonCenterX(float moonLeft, int i) {
+        return moonLeft - kBtnGap - kBtnD * 0.5f - static_cast<float>(i) * (kBtnD + kBtnSpacing);
+    }
 }
+
+enum class TopButton { None, Settings, Power };
 
 bool QuietButtonHitTest(const MediaContentPoint& pt) {
     if (!pt.valid || pt.height < MediaLayout::kExpandedHeight - 12.0f) {
@@ -1534,22 +1533,25 @@ bool QuietButtonHitTest(const MediaContentPoint& pt) {
     return pt.x >= left && pt.x <= right && pt.y >= top && pt.y <= bottom;
 }
 
-// Standalone 0.4: the gear left of the moon opens the Launcher.
-bool GearButtonHitTest(const MediaContentPoint& pt) {
+// Standalone 0.4/0.5: which round button (gear / power) the point is over.
+TopButton TopButtonHitTest(const MediaContentPoint& pt) {
     if (!pt.valid || pt.height < MediaLayout::kExpandedHeight - 12.0f) {
-        return false;
+        return TopButton::None;
     }
     const float fullW = std::max(MediaLayout::kExpandedWidth, pt.width);
     const float fullLeft = (pt.width - fullW) * 0.5f;
     const float trackRight = fullLeft + fullW - QuietToggleLayout::kRightInset;
     const float moonLeft = trackRight - QuietToggleLayout::kTrackW - QuietToggleLayout::kMoonGap -
                            QuietToggleLayout::kMoonW;
-    const float gearRight = moonLeft - QuietToggleLayout::kGearGap;
-    const float left = gearRight - QuietToggleLayout::kGearW - 5.0f;
-    const float right = gearRight + 4.0f;  // stops short of the toggle's own hit area
-    const float top = QuietToggleLayout::kCenterY - 14.0f;
-    const float bottom = QuietToggleLayout::kCenterY + 14.0f;
-    return pt.x >= left && pt.x <= right && pt.y >= top && pt.y <= bottom;
+    const float r = QuietToggleLayout::kBtnD * 0.5f + 2.0f;  // a little forgiving
+    for (int i = 0; i < 2; ++i) {
+        const float dx = pt.x - QuietToggleLayout::ButtonCenterX(moonLeft, i);
+        const float dy = pt.y - QuietToggleLayout::kCenterY;
+        if (dx * dx + dy * dy <= r * r) {
+            return i == 0 ? TopButton::Settings : TopButton::Power;
+        }
+    }
+    return TopButton::None;
 }
 
 // Opens the Launcher next to DynamicIsland.exe; without it, settings.json in
@@ -2352,12 +2354,8 @@ void LoadSettings() {
     next.gameOverlayCompact = di::settings::GetInt(L"Modules.GameOverlayCompact") != 0;
     next.tintOpacity = Clamp(di::settings::GetInt(L"Themes.TintIntensity") / 100.0f, 0.0f, 1.0f);
     const int settingOpacity = di::settings::GetInt(L"Themes.PillOpacity");
-    const int localOpacity = di::state::GetInt(L"PillOpacityOverride", -1);
-    g_pillOpacityOverride.store(localOpacity);
-    g_gameOverlayPinned.store(di::state::GetInt(L"GameOverlayPinned", 0) != 0);
     g_pinnedExpanded.store(di::state::GetInt(L"PinnedExpanded", 0) != 0);
-    next.pillOpacity = Clamp((localOpacity >= 0 ? localOpacity : settingOpacity) / 100.0f,
-                             0.35f, 1.0f);
+    next.pillOpacity = Clamp(settingOpacity / 100.0f, 0.35f, 1.0f);
     next.gameOverlay = di::settings::GetInt(L"Modules.GameOverlay") != 0;
     next.showMetricText = di::settings::GetInt(L"Modules.ShowMetricText") != 0;
     next.weather = di::settings::GetInt(L"Modules.Weather") != 0;
@@ -2367,8 +2365,7 @@ void LoadSettings() {
     next.autoHideIdleSeconds = hideSec.empty() ? 0 : _wtoi(hideSec.c_str());
     next.unhideOnHover = di::settings::GetInt(L"Behavior.UnhideOnHover") != 0;
     next.alwaysOnTop = di::settings::GetInt(L"Behavior.AlwaysOnTop") != 0;
-    const int localExpandOnHover = di::state::GetInt(L"ExpandOnHoverOverride", -1);
-    next.expandOnHover = localExpandOnHover >= 0 ? (localExpandOnHover != 0) : (di::settings::GetInt(L"Behavior.ExpandOnHover") != 0);
+    next.expandOnHover = di::settings::GetInt(L"Behavior.ExpandOnHover") != 0;
     next.autoDpiScale = di::settings::GetInt(L"Appearance.AutoDpiScale") != 0;
     next.offsetX = di::settings::GetInt(L"Appearance.OffsetX");
     next.offsetY = di::settings::GetInt(L"Appearance.OffsetY");
@@ -2376,21 +2373,9 @@ void LoadSettings() {
     next.offsetYExpanded = di::settings::GetInt(L"Appearance.OffsetYExpanded");
 
 
-    std::wstring shapeStr = GetStringSettingCopy(L"Appearance.ShapeStyle");
-    static std::wstring s_lastConfiguredShape = L"";
-    if (!shapeStr.empty() && shapeStr != s_lastConfiguredShape) {
-        s_lastConfiguredShape = shapeStr;
-        di::state::SetInt(L"W11StyleOverride", -1);
-        di::state::SetInt(L"NotchStyleOverride", -1);
-    }
-    bool baseW11 = EqualsNoCase(shapeStr, L"w11");
-    bool baseNotch = EqualsNoCase(shapeStr, L"notch");
-
-    const int localW11Style = di::state::GetInt(L"W11StyleOverride", -1);
-    next.w11Style = localW11Style >= 0 ? (localW11Style != 0) : baseW11;
-
-    const int localNotchStyle = di::state::GetInt(L"NotchStyleOverride", -1);
-    next.notchStyle = localNotchStyle >= 0 ? (localNotchStyle != 0) : baseNotch;
+    const std::wstring shapeStr = GetStringSettingCopy(L"Appearance.ShapeStyle");
+    next.w11Style = EqualsNoCase(shapeStr, L"w11");
+    next.notchStyle = EqualsNoCase(shapeStr, L"notch");
 
     // A bottom-anchored island cannot be a top-edge macOS notch.
     if (IsBottomPosition(next.position)) {
@@ -2461,35 +2446,9 @@ void LoadSettings() {
     };
 
     std::wstring themePresetStr = GetStringSettingCopy(L"Themes.ThemePreset");
-    // The active palette is persisted as an integer so the right-click menu can
-    // change it without rewriting the settings file. Migrate the old key across
-    // once, since the integers were renumbered when the palettes changed.
-    if (di::state::GetInt(kThemeValueName, -1) < 0) {
-        const int legacy = di::state::GetInt(kLegacyThemeValueName, -1);
-        if (legacy >= 0) {
-            int migrated;
-            switch (legacy) {
-                case 0:  migrated = 0; break;                  // OLED Black    -> Obsidian
-                case 1:  migrated = 1; break;                  // Fluent        -> Graphite
-                case 2:  migrated = 2; break;                  // Midnight Blue -> Slate
-                case 3:  migrated = 6; break;                  // Deep Purple   -> Plum
-                case 4:  migrated = 1; break;                  // Fluent Design -> Graphite
-                default: migrated = kCustomThemeIndex; break;   // out of range meant Custom
-            }
-            di::state::SetInt(kThemeValueName, migrated);
-        }
-    }
-
-    static std::wstring s_lastConfiguredPreset = L"";
-    if (!themePresetStr.empty() && themePresetStr != s_lastConfiguredPreset) {
-        s_lastConfiguredPreset = themePresetStr;
-        const int fromSettings = ThemeIndexFromId(themePresetStr);
-        if (fromSettings >= 0) {
-            di::state::SetInt(kThemeValueName, fromSettings);
-        }
-    }
-
-    const int theme = di::state::GetInt(kThemeValueName, -1);
+    // Standalone 0.5: the palette comes from settings only (the right-click
+    // menu that could override it is gone).
+    const int theme = ThemeIndexFromId(themePresetStr);
     if (theme >= 0 && theme < kCustomThemeIndex) {
         next.themePreset = static_cast<ThemePreset>(theme);
         applyPreset(next, theme);
@@ -2514,7 +2473,7 @@ void LoadSettings() {
     // Graphite inherits the old Fluent theme's auto-translucency: it is the
     // neutral Windows 11 grey, and it reads best when the desktop shows through
     // a little. The rest of the palettes are opaque unless the user says so.
-    if (next.themePreset == ThemePreset::Graphite && localOpacity < 0) {
+    if (next.themePreset == ThemePreset::Graphite) {
         next.pillOpacity = 0.88f;
     }
 
@@ -4891,12 +4850,13 @@ namespace QuietMode {
 
 // True once the island has shrunk away and the window must stay hidden.
 bool HidesIsland() {
-    return g_quietMode.load() && g_quietCollapsed.load();
+    return (g_quietMode.load() || g_exitRequested.load()) && g_quietCollapsed.load();
 }
 
 // True while the island is shrinking into itself before hiding.
 bool IsCollapsing(double now) {
-    return g_quietMode.load() && !g_quietCollapsed.load() && now >= g_quietHideAt.load();
+    return (g_quietMode.load() || g_exitRequested.load()) && !g_quietCollapsed.load() &&
+           now >= g_quietHideAt.load();
 }
 
 // fromToggle: switched with the on-island toggle. The switch animates to "on"
@@ -4931,6 +4891,31 @@ void Set(bool on, bool fromToggle = false) {
 
 void Toggle() {
     Set(!g_quietMode.load());
+}
+
+// Standalone 0.5: power button -- the Do Not Disturb shrink, then quit.
+void RequestAnimatedExit() {
+    if (g_exitRequested.exchange(true)) {
+        return;
+    }
+    DI_LOG(L"Exit requested from the island (power button).");
+    g_quietCollapsed.store(false);
+    g_quietHideAt.store(NowSeconds());
+    {
+        std::lock_guard lock(g_stateMutex);
+        g_state.notification.active = false;
+        g_state.notification.expiresAt = 0.0;
+    }
+    g_layoutDirty = true;
+    TriggerNudge();
+    if (HWND hwnd = g_hwnd) {
+        PostMessageW(hwnd, WM_APP_NEW_EVENT, 0, 0);
+    }
+    // Safety net: quit even if the render loop never reports the shrink done.
+    std::thread([] {
+        Sleep(2500);
+        if (g_mainThreadId) PostThreadMessageW(g_mainThreadId, WM_QUIT, 0, 0);
+    }).detach();
 }
 
 }  // namespace QuietMode
@@ -8815,219 +8800,6 @@ void ShowMediaSourcePopup(HWND hwnd, POINT screenPoint) {
     ApplyMediaSourceMenuCommand(cmd, items);
 }
 
-void ShowContextMenu(HWND hwnd, POINT screenPoint) {
-    bool timerActive = false;
-    bool timerRunning = false;
-    {
-        std::lock_guard lock(g_stateMutex);
-        timerActive = g_state.timer.active;
-        timerRunning = g_state.timer.running;
-    }
-
-    HMENU menu = CreatePopupMenu();
-    AppendMenuW(menu, MF_STRING, 40, g_manuallyHidden.load() ? L"Show Island" : L"Hide Island");
-    // Custom fork, Feature 3. Id 95 is unused by the original menu (50.. = shapes, 100.. = media sources).
-    AppendMenuW(menu, MF_STRING | (g_quietMode.load() ? MF_CHECKED : 0), 95, L"Не беспокоить");
-    AppendMenuW(menu, MF_STRING, 1, L"Dismiss");
-
-    HMENU timerMenu = CreatePopupMenu();
-    AppendMenuW(timerMenu, MF_STRING, 30, L"Start 25 min Focus");
-    AppendMenuW(timerMenu, MF_STRING, 31, L"Start 50 min Focus");
-    AppendMenuW(timerMenu, MF_STRING, 32, L"Start 5 min Break");
-    if (timerActive) {
-        AppendMenuW(timerMenu, MF_STRING, 33, timerRunning ? L"Pause Timer" : L"Resume Timer");
-        AppendMenuW(timerMenu, MF_STRING, 34, L"Stop Timer");
-    }
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(timerMenu), L"Focus Timer");
-
-    std::vector<MediaSourceMenuItem> mediaSourceItems;
-    {
-        HMENU sourceMenu = CreatePopupMenu();
-        mediaSourceItems = AppendMediaSourceItems(sourceMenu);
-        AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(sourceMenu), Loc(L"Media source"));
-    }
-    AppendMenuW(menu, MF_STRING, 2, L"Pin expanded");
-    AppendMenuW(menu, MF_STRING, 3, g_gameOverlayPinned.load() ? L"Hide game overlay" : L"Show game overlay");
-    {
-        // g_settings already reflects any right-click override, so it is the
-        // source of truth for which style is active.
-        const int currentShape = g_settings.notchStyle ? 2 : (g_settings.w11Style ? 1 : 0);
-        HMENU shapeMenu = CreatePopupMenu();
-        AppendMenuW(shapeMenu, MF_STRING, kShapeMenuIdBase, L"iPhone Pill");
-        AppendMenuW(shapeMenu, MF_STRING, kShapeMenuIdBase + 1, L"Windows 11 Flyout");
-        if (IsBottomPosition(g_settings.position)) {
-            AppendMenuW(shapeMenu, MF_STRING | MF_GRAYED | MF_DISABLED, kShapeMenuIdBase + 2,
-                        L"macOS Notch (unavailable at bottom)");
-        } else {
-            AppendMenuW(shapeMenu, MF_STRING, kShapeMenuIdBase + 2, L"macOS Notch");
-        }
-        CheckMenuRadioItem(shapeMenu, kShapeMenuIdBase, kShapeMenuIdBase + 2,
-                           kShapeMenuIdBase + static_cast<UINT>(currentShape), MF_BYCOMMAND);
-        AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(shapeMenu), L"Shape style");
-    }
-    const int activeExpandOnHover = di::state::GetInt(L"ExpandOnHoverOverride", -1) >= 0
-                          ? di::state::GetInt(L"ExpandOnHoverOverride", 0)
-                          : (di::settings::GetInt(L"Behavior.ExpandOnHover") != 0);
-    AppendMenuW(menu, MF_STRING, 11, activeExpandOnHover ? L"Expand on Click" : L"Expand on Hover");
-    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    const int activeOpacity = g_pillOpacityOverride.load();
-    HMENU opacityMenu = CreatePopupMenu();
-    AppendMenuW(opacityMenu, MF_STRING | (activeOpacity == 100 ? MF_CHECKED : 0), 4, L"100% (Opaque)");
-    AppendMenuW(opacityMenu, MF_STRING | (activeOpacity == 85 ? MF_CHECKED : 0), 5, L"85%");
-    AppendMenuW(opacityMenu, MF_STRING | (activeOpacity == 70 ? MF_CHECKED : 0), 6, L"70%");
-    AppendMenuW(opacityMenu, MF_STRING | (activeOpacity == 55 ? MF_CHECKED : 0), 7, L"55%");
-    AppendMenuW(opacityMenu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(opacityMenu, MF_STRING | (activeOpacity < 0 ? MF_CHECKED : 0), 8, L"Theme default");
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(opacityMenu), L"Transparency");
-    // Color theme presets. Built from kThemePalettes and nested in a submenu:
-    // nine palettes listed flat would dominate the root menu.
-    const int activeTheme = di::state::GetInt(kThemeValueName, static_cast<int>(g_settings.themePreset));
-    HMENU themeMenu = CreatePopupMenu();
-    for (int i = 0; i < kCustomThemeIndex; ++i) {
-        AppendMenuW(themeMenu, MF_STRING | (activeTheme == i ? MF_CHECKED : 0),
-                    kThemeMenuIdBase + static_cast<UINT>(i), kThemePalettes[i].label);
-    }
-    AppendMenuW(themeMenu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(themeMenu, MF_STRING | (activeTheme >= kCustomThemeIndex ? MF_CHECKED : 0),
-                kThemeMenuIdBase + static_cast<UINT>(kCustomThemeIndex), L"Custom Colors");
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(themeMenu), L"Theme");
-    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING, 9, L"Настройки…");
-    AppendMenuW(menu, MF_STRING, 97, L"Выйти из Dynamic Island");  // standalone: there is no Windhawk to switch it off
-
-    SetForegroundWindow(hwnd);
-    DwmBackdrop::EnsureBehind(hwnd);
-    const UINT cmd = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON,
-                                   screenPoint.x, screenPoint.y, 0, hwnd, nullptr);
-    DestroyMenu(menu);
-    PostMessageW(hwnd, WM_NULL, 0, 0);
-    DwmBackdrop::EnsureBehind(hwnd);
-    g_layoutDirty = true;
-
-    // Theme ids are a contiguous range rather than individual cases, so adding a
-    // palette to kThemePalettes needs no change here.
-    if (cmd >= kThemeMenuIdBase &&
-        cmd <= kThemeMenuIdBase + static_cast<UINT>(kCustomThemeIndex)) {
-        di::state::SetInt(kThemeValueName, static_cast<int>(cmd - kThemeMenuIdBase));
-        LoadSettings();
-        return;
-    }
-
-    if (cmd >= kMediaSourceMenuIdBase) {
-        ApplyMediaSourceMenuCommand(cmd, mediaSourceItems);
-        return;
-    }
-
-    switch (cmd) {
-        case 1:
-            DismissTransientState();
-            g_clickExpanded = false;
-            g_layoutDirty = true;
-            TriggerNudge();
-            break;
-        case 2: {
-            const bool nextVal = !g_pinnedExpanded.load();
-            g_pinnedExpanded.store(nextVal);
-            di::state::SetInt(L"PinnedExpanded", nextVal ? 1 : 0);
-            break;
-        }
-        case 3: {
-            const bool nextVal = !g_gameOverlayPinned.load();
-            g_gameOverlayPinned.store(nextVal);
-            di::state::SetInt(L"GameOverlayPinned", nextVal ? 1 : 0);
-            break;
-        }
-        case 4:
-            g_pillOpacityOverride.store(100);
-            di::state::SetInt(L"PillOpacityOverride", 100);
-            LoadSettings();
-            break;
-        case 5:
-            g_pillOpacityOverride.store(85);
-            di::state::SetInt(L"PillOpacityOverride", 85);
-            LoadSettings();
-            break;
-        case 6:
-            g_pillOpacityOverride.store(70);
-            di::state::SetInt(L"PillOpacityOverride", 70);
-            LoadSettings();
-            break;
-        case 7:
-            g_pillOpacityOverride.store(55);
-            di::state::SetInt(L"PillOpacityOverride", 55);
-            LoadSettings();
-            break;
-        case 8:
-            g_pillOpacityOverride.store(-1);
-            di::state::SetInt(L"PillOpacityOverride", -1);
-            LoadSettings();
-            break;
-        case 97:  // standalone: quit the whole program (main thread runs the shutdown)
-            if (g_mainThreadId) {
-                PostThreadMessageW(g_mainThreadId, WM_QUIT, 0, 0);
-            }
-            break;
-        case 9:
-            OpenLauncher();
-            break;
-        case kShapeMenuIdBase:
-        case kShapeMenuIdBase + 1:
-        case kShapeMenuIdBase + 2: {
-            const bool wantW11 = (cmd == kShapeMenuIdBase + 1);
-            const bool wantNotch = (cmd == kShapeMenuIdBase + 2);
-            if (wantNotch && IsBottomPosition(g_settings.position)) {
-                break;  // a bottom-anchored island can't be a top-edge notch
-            }
-            // Both overrides are written every time, so exactly one style is active.
-            di::state::SetInt(L"W11StyleOverride", wantW11 ? 1 : 0);
-            di::state::SetInt(L"NotchStyleOverride", wantNotch ? 1 : 0);
-            LoadSettings();
-            g_layoutDirty = true;
-            TriggerNudge();
-            break;
-        }
-        case 11: {
-            const int activeExpandOnHover = di::state::GetInt(L"ExpandOnHoverOverride", -1) >= 0
-                                  ? di::state::GetInt(L"ExpandOnHoverOverride", 0)
-                                  : (di::settings::GetInt(L"Behavior.ExpandOnHover") != 0);
-            di::state::SetInt(L"ExpandOnHoverOverride", activeExpandOnHover ? 0 : 1);
-            LoadSettings();
-            g_layoutDirty = true;
-            break;
-        }
-        case 30:
-            StartFocusTimer(25, false);
-            break;
-        case 31:
-            StartFocusTimer(50, false);
-            break;
-        case 32:
-            StartFocusTimer(5, true);
-            break;
-        case 33:
-            ToggleTimerPause();
-            break;
-        case 34:
-            StopFocusTimer();
-            break;
-        case 95:  // custom fork: island Do Not Disturb
-            QuietMode::Toggle();
-            break;
-        case 40: {
-            // Only reachable while visible (a hidden window can't be
-            // right-clicked), so in practice this toggles hidden -> the
-            // hotkey is the only way back. That's intentional; see readme.
-            const bool nowHidden = !g_manuallyHidden.load();
-            g_manuallyHidden = nowHidden;
-            di::state::SetInt(L"ManuallyHidden", nowHidden ? 1 : 0);
-            if (nowHidden) {
-                g_hotkeyUnhideUntil.store(0.0);
-            }
-            g_layoutDirty = true;
-            break;
-        }
-    }
-}
 
 // ── Weather iconography ──────────────────────────────────────────────────────
 // The dashboard used colour emoji (☀️ ⛅ 🌡️) rendered with ENABLE_COLOR_FONT,
@@ -9242,7 +9014,7 @@ class Renderer {
         settingsOpacity_ = settings.pillOpacity;
 
         const bool gameMetricsPresent = primary.kind == IslandKind::Idle &&
-            (settings.gameOverlay || g_gameOverlayPinned.load());
+            settings.gameOverlay;
         // True while the island is collapsing to nothing (auto-hide / fullscreen).
         islandHiding_ = primary.width < 1.0f && primary.height < 1.0f && !secondary;
 
@@ -11905,7 +11677,7 @@ class Renderer {
 
     void DrawIdleDashboard(const SharedState& state, D2D1_RECT_F rect, const Settings& settings,
                            double now) {
-        if (settings.gameOverlay || g_gameOverlayPinned.load()) {
+        if settings.gameOverlay {
             DrawGameOverlay(state, rect, 1.0f);
             return;
         }
@@ -12491,13 +12263,29 @@ class Renderer {
             target_->DrawTextW(glyph, 1, iconFormat_.Get(),
                                D2D1::RectF(moonRight - QuietToggleLayout::kMoonW, cy - 11.0f, moonRight, cy + 11.0f),
                                textBrush_.Get(), D2D1_DRAW_TEXT_OPTIONS_CLIP);
-            // Standalone 0.4: settings gear (opens the Launcher), same weight as the moon.
-            const float gearRight = moonRight - QuietToggleLayout::kMoonW - QuietToggleLayout::kGearGap;
-            const wchar_t* gear = L"\uE713";  // Settings, MDL2 and Fluent
-            textBrush_->SetOpacity(0.70f * settingsOpacity_);
-            target_->DrawTextW(gear, 1, iconFormat_.Get(),
-                               D2D1::RectF(gearRight - QuietToggleLayout::kGearW, cy - 11.0f, gearRight, cy + 11.0f),
-                               textBrush_.Get(), D2D1_DRAW_TEXT_OPTIONS_CLIP);
+            // Standalone 0.4/0.5: round buttons -- settings (gear) and power. A thin
+            // ring and a faint fill show they can be pressed; icons at 80 % size.
+            const float moonLeft = moonRight - QuietToggleLayout::kMoonW;
+            const wchar_t* glyphs[2] = {L"\uE713", L"\uE7E8"};  // Settings, PowerButton (MDL2 / Fluent)
+            const float radius = QuietToggleLayout::kBtnD * 0.5f;
+            D2D1_MATRIX_3X2_F oldTransform;
+            target_->GetTransform(&oldTransform);
+            for (int i = 0; i < 2; ++i) {
+                const float bx = QuietToggleLayout::ButtonCenterX(moonLeft, i);
+                const D2D1_ELLIPSE circle = D2D1::Ellipse(D2D1::Point2F(bx, cy), radius, radius);
+                if (ID2D1SolidColorBrush* fill = AcquireBrush(WithAlpha(material_.textPrimary, 0.07f * settingsOpacity_))) {
+                    target_->FillEllipse(circle, fill);
+                }
+                if (ID2D1SolidColorBrush* ring = AcquireBrush(WithAlpha(material_.textPrimary, 0.28f * settingsOpacity_))) {
+                    target_->DrawEllipse(D2D1::Ellipse(D2D1::Point2F(bx, cy), radius - 0.5f, radius - 0.5f), ring, 1.0f);
+                }
+                target_->SetTransform(D2D1::Matrix3x2F::Scale(0.8f, 0.8f, D2D1::Point2F(bx, cy)) * oldTransform);
+                textBrush_->SetOpacity(0.85f * settingsOpacity_);
+                target_->DrawTextW(glyphs[i], 1, iconFormat_.Get(),
+                                   D2D1::RectF(bx - 12.0f, cy - 12.0f, bx + 12.0f, cy + 12.0f),
+                                   textBrush_.Get(), D2D1_DRAW_TEXT_OPTIONS_NONE);
+                target_->SetTransform(oldTransform);
+            }
             textBrush_->SetOpacity(1.0f);
             iconFormat_->SetTextAlignment(oldAlign);
             iconFormat_->SetParagraphAlignment(oldPara);
@@ -15527,21 +15315,27 @@ LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
                 // Custom fork, Feature 3: the Do Not Disturb button on the expanded Time tab.
                 if (g_settings.quietButton && !kinds.empty() &&
-                    ((kinds[0] == IslandKind::Idle && !(g_settings.gameOverlay || g_gameOverlayPinned.load())) ||
+                    ((kinds[0] == IslandKind::Idle && !g_settings.gameOverlay) ||
                      kinds[0] == IslandKind::Media) &&
                     NormalizedTabIndex(g_settings) == 0 &&
                     QuietButtonHitTest(MediaContentFromClient(xPos, yPos))) {
                     QuietMode::Set(true, /*fromToggle=*/true);
                     return 0;
                 }
-                // Standalone 0.4: the gear next to it opens the Launcher.
+                // Standalone 0.4/0.5: the round buttons next to it -- settings, power.
                 if (g_settings.quietButton && !kinds.empty() &&
-                    ((kinds[0] == IslandKind::Idle && !(g_settings.gameOverlay || g_gameOverlayPinned.load())) ||
+                    ((kinds[0] == IslandKind::Idle && !g_settings.gameOverlay) ||
                      kinds[0] == IslandKind::Media) &&
-                    NormalizedTabIndex(g_settings) == 0 &&
-                    GearButtonHitTest(MediaContentFromClient(xPos, yPos))) {
-                    OpenLauncher();
-                    return 0;
+                    NormalizedTabIndex(g_settings) == 0) {
+                    const TopButton button = TopButtonHitTest(MediaContentFromClient(xPos, yPos));
+                    if (button == TopButton::Settings) {
+                        OpenLauncher();
+                        return 0;
+                    }
+                    if (button == TopButton::Power) {
+                        QuietMode::RequestAnimatedExit();
+                        return 0;
+                    }
                 }
 
                 // Clicking a Telegram / Discord card dismisses it and opens the app.
@@ -15575,7 +15369,7 @@ LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 }
                 const bool gameMetricsPresent =
                     !kinds.empty() && kinds[0] == IslandKind::Idle &&
-                    (g_settings.gameOverlay || g_gameOverlayPinned.load());
+                    g_settings.gameOverlay;
 
                 bool expanded = g_pinnedExpanded.load() || g_clickExpanded.load();
                 if (!gameMetricsPresent && !g_settings.expandOnHover && !expanded) {
@@ -15691,12 +15485,11 @@ LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             return 0;
         }
 
-        case WM_RBUTTONUP: {
-            POINT pt = {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
-            ClientToScreen(hwnd, &pt);
-            ShowContextMenu(hwnd, pt);
+        case WM_RBUTTONUP:
+            // Standalone 0.5: no right-click menu. Everything it offered is in the
+            // Launcher (gear), on the island (Do Not Disturb, power) or a hotkey;
+            // returning here also keeps DefWindowProc from sending WM_CONTEXTMENU.
             return 0;
-        }
 
         case WM_DPICHANGED:
         case WM_DISPLAYCHANGE: {
@@ -16163,7 +15956,7 @@ DWORD WINAPI RenderThreadProc(void*) {
 
         bool isHoverExpanded = g_settings.expandOnHover ? hover : (hover && g_clickExpanded.load());
         const bool gameMetricsPresent = primary.kind == IslandKind::Idle &&
-            (g_settings.gameOverlay || g_gameOverlayPinned.load());
+            g_settings.gameOverlay;
         if (gameMetricsPresent) {
             isHoverExpanded = false;
         }
@@ -16283,7 +16076,7 @@ DWORD WINAPI RenderThreadProc(void*) {
             }
         }
         if (!isFullscreen && primary.kind == IslandKind::Idle &&
-            (g_settings.gameOverlay || g_gameOverlayPinned.load())) {
+            g_settings.gameOverlay) {
             // Width follows the metrics actually enabled (#25) so switching some
             // off shrinks the strip instead of leaving empty space, and compact
             // mode narrows it enough to sit neatly in the taskbar area. Both the
@@ -16672,7 +16465,7 @@ DWORD WINAPI RenderThreadProc(void*) {
             Settings renderSettings = GetSettingsCopy();
             if (ctrlHoverCT) {
                 renderSettings.pillOpacity = Clamp(renderSettings.pillOpacity * 0.35f, 0.15f, 0.45f);
-            } else if (renderSettings.themePreset == ThemePreset::Graphite && g_pillOpacityOverride.load() < 0) {
+            } else if (renderSettings.themePreset == ThemePreset::Graphite) {
                 const bool isExpanded = isHoverExpanded || pinned || isTransientAlert || (widthSpring.value > 260.0f);
                 renderSettings.pillOpacity = isExpanded ? 0.98f : 0.88f;
             }
@@ -16708,6 +16501,9 @@ DWORD WINAPI RenderThreadProc(void*) {
              now - g_quietHideAt.load() > 1.5)) {
             g_quietCollapsed = true;
             s_quietShrinking = false;
+            if (g_exitRequested.load() && g_mainThreadId) {  // standalone 0.5: power button
+                PostThreadMessageW(g_mainThreadId, WM_QUIT, 0, 0);
+            }
             continue;
         }
 
@@ -16958,6 +16754,16 @@ void Show() {
         (g_manuallyHidden.load() || !IsWindowVisible(g_hwnd))) {
         PostMessageW(g_hwnd, WM_HOTKEY, ID_HIDE_SHOW_HOTKEY, 0);
     }
+}
+
+// Focus timer, from the Launcher (it used to be in the right-click menu).
+void TimerCommand(const std::wstring& action) {
+    if (action == L"25") StartFocusTimer(25, false);
+    else if (action == L"50") StartFocusTimer(50, false);
+    else if (action == L"break") StartFocusTimer(5, true);
+    else if (action == L"pause") ToggleTimerPause();
+    else if (action == L"stop") StopFocusTimer();
+    g_layoutDirty = true;
 }
 
 unsigned CurrentAccent() {

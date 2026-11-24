@@ -114,6 +114,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     handlers.show = [] { di::island::Show(); };
     handlers.progress = [](int p) { di::island::SetProgress(p); };
     handlers.accent = [] { return di::island::CurrentAccent(); };
+    handlers.timer = [](const std::wstring& a) { di::island::TimerCommand(a); };
     handlers.endSession = [] {
         DI_LOG(L"Windows is ending the session.");
         di::settings::StopWatcher();

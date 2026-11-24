@@ -21,6 +21,8 @@ LRESULT Dispatch(const std::wstring& cmd) {
         if (g_handlers.quit) g_handlers.quit();
     } else if (cmd == L"show") {
         if (g_handlers.show) g_handlers.show();
+    } else if (cmd.rfind(L"timer ", 0) == 0) {
+        if (g_handlers.timer) g_handlers.timer(cmd.substr(6));
     } else if (cmd.rfind(L"progress ", 0) == 0) {
         if (g_handlers.progress) g_handlers.progress(_wtoi(cmd.c_str() + 9));
     } else {

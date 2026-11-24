@@ -334,6 +334,11 @@ function homeHtml() {
         ${run ? `<button class="btn" data-act="restart" ${state.busy ? 'disabled' : ''}>Перезапустить</button><button class="btn" data-act="stop" ${state.busy ? 'disabled' : ''}>Остановить</button>`
               : `<button class="btn primary" data-act="start" ${state.busy || !state.islandFound ? 'disabled' : ''}>Запустить</button>`}
       </div></div></div></section>`;
+  if (run && v('Modules.TimerModule')) {
+    html += `<section><h2>Таймер фокусировки</h2><div class="card"><div class="row"><div class="label"><b>Запустить таймер на острове</b><span>Обратный отсчёт показывается в острове.</span></div>
+      <div class="ctl"><button class="btn" data-timer="25">25 мин</button><button class="btn" data-timer="50">50 мин</button><button class="btn" data-timer="break">Перерыв 5 мин</button>
+      <button class="btn" data-timer="pause">Пауза</button><button class="btn" data-timer="stop">Стоп</button></div></div></div></section>`;
+  }
   const quick = ['Themes.AccentPreset', 'Telegram.Enabled', 'Discord.Enabled', 'GameMode.SmartGameMode', 'Stocks.Enabled', 'Themes.ThemePreset', 'Themes.BackdropMaterial']
     .map((k) => state.byKey[k]).filter(Boolean);
   html += sectionHtml('Быстрые настройки', quick);
@@ -415,6 +420,8 @@ document.addEventListener('click', async (e) => {
   if (segBtn) { const seg = segBtn.parentElement; seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === segBtn)); state.values[seg.dataset.k] = segBtn.dataset.v; refreshDimming(); save(seg.dataset.k, segBtn.dataset.v); return; }
   const nav = e.target.closest('nav a');
   if (nav) { state.page = nav.dataset.p; $('#q').value = ''; $('#content').scrollTop = 0; render(); return; }
+  const tm = e.target.closest('[data-timer]');
+  if (tm) { send({ type: 'timer', action: tm.dataset.timer }); return; }
   const op = e.target.closest('[data-open]');
   if (op) { send({ type: 'open', what: op.dataset.open }); return; }
   const act = e.target.closest('[data-act]'); if (!act) return;
@@ -428,7 +435,7 @@ document.addEventListener('change', (e) => { if (e.target.dataset.t === 'enum') 
 $('#q').addEventListener('input', render);
 
 // ── Messages from C++ ──
-const ACTION_TEXT = { start: 'Остров запущен', stop: 'Остров остановлен', restart: 'Остров перезапущен', kill: 'Процесс завершён', autostart: 'Сохранено' };
+const ACTION_TEXT = { timer: 'Готово', start: 'Остров запущен', stop: 'Остров остановлен', restart: 'Остров перезапущен', kill: 'Процесс завершён', autostart: 'Сохранено' };
 function onHostMessage(m) {
   switch (m.type) {
     case 'init':

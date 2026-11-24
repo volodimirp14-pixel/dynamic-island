@@ -890,7 +890,7 @@
       "key": "Modules.TimerModule",
       "group": "Modules",
       "name": "Таймер фокусировки",
-      "description": "Запускается из меню правой кнопки.",
+      "description": "Запускается кнопками на Главной странице Launcher.",
       "type": "bool",
       "default": true
     },

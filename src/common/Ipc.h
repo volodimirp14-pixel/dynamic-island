@@ -4,6 +4,7 @@
 // with dwData == kCommandMagic and a UTF-16 command string (no terminator needed).
 //
 // Commands:  reload | quit | show | progress <0..100 | -1>
+//            timer <25 | 50 | break | pause | stop>
 //            accent  -> returns the live accent as 0x01RRGGBB (TRUE when unknown)
 namespace di::ipc {
 inline constexpr const wchar_t* kControlWindowClass = L"DynamicIsland.Control";

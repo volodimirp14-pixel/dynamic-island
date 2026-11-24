@@ -13,7 +13,8 @@ struct Handlers {
     std::function<void()> show;
     std::function<void(int)> progress;
     std::function<void()> endSession;  // Windows is shutting down / logging off
-    std::function<unsigned()> accent;  // "accent": live accent 0x01RRGGBB (0 = none)
+    std::function<unsigned()> accent;
+    std::function<void(const std::wstring&)> timer;  // "timer <25|50|break|pause|stop>"  // "accent": live accent 0x01RRGGBB (0 = none)
 };
 
 // Creates the window on the calling thread (which must run a message loop).

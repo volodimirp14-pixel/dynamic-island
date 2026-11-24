@@ -127,6 +127,12 @@ void HandleMessage(const json& m) {
             else error = L"Остров не закрылся за 6 секунд.";
             return json{{"type", "action"}, {"action", "restart"}, {"ok", ok}, {"error", di::WideToUtf8(error)}};
         });
+    } else if (type == "timer") {
+        const std::string action = m.value("action", "");
+        if (action == "25" || action == "50" || action == "break" || action == "pause" || action == "stop") {
+            const bool ok = di::ipc::Send(L"timer " + di::Utf8ToWide(action));
+            PostJson({{"type", "action"}, {"action", "timer"}, {"ok", ok}});
+        }
     } else if (type == "kill") {
         RunAsync([] { return json{{"type", "action"}, {"action", "kill"}, {"ok", di::launcher::KillIsland()}}; });
     } else if (type == "autostart") {
