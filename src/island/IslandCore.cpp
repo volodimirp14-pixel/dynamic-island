@@ -4478,6 +4478,14 @@ DWORD WINAPI MediaThreadProc(void*) {
     int64_t pendingSeekBaseline = -1;  // guards against bogus "went backwards" readings
     MediaSourceTracker sourceTracker;
     ULONGLONG pendingSeekBaselineTickCount = 0;
+    // Standalone 0.9.1: our own clock for players whose LastUpdatedTime is stale
+    // or missing (Apple Music): when Position() last changed, as seen by us.
+    int64_t ownRawPos = -1;
+    int64_t ownEnd = -1;
+    bool ownWasPlaying = false;
+    std::wstring ownSource;
+    ULONGLONG ownRawSeenAt = 0;
+    std::wstring loggedTimelineFor;
 
     while (WaitForSingleObject(g_stopEvent, 0) == WAIT_TIMEOUT) {
         MediaSnapshot next;
@@ -4507,20 +4515,54 @@ DWORD WINAPI MediaThreadProc(void*) {
                     next.albumTitle = properties.AlbumTitle().c_str();
 
                     if (timeline) {
-                        const int64_t rawPos = timeline.Position().count();
+                        // Standalone 0.9.1: positions are measured from StartTime (Apple Music
+                        // and some others don't start at 0), and when EndTime is missing the
+                        // seekable range gives the length.
+                        const int64_t startT = timeline.StartTime().count();
+                        const int64_t rawPos = std::max<int64_t>(0, timeline.Position().count() - startT);
                         int64_t np = rawPos;
-                        int64_t ne = timeline.EndTime().count();
+                        int64_t ne = timeline.EndTime().count() - startT;
+                        if (ne <= 0) {
+                            ne = timeline.MaxSeekTime().count() - timeline.MinSeekTime().count();
+                        }
+                        if (ne < 0) ne = 0;
                         bool npP = (playback.PlaybackStatus() == PlaybackStatus::Playing);
+                        const std::wstring srcId = session.SourceAppUserModelId().c_str();
+
+                        // Our own record of when Position() last moved.
+                        const ULONGLONG tickNow = GetTickCount64();
+                        if (rawPos != ownRawPos || ne != ownEnd || npP != ownWasPlaying || srcId != ownSource) {
+                            ownRawPos = rawPos;
+                            ownEnd = ne;
+                            ownWasPlaying = npP;
+                            ownSource = srcId;
+                            ownRawSeenAt = tickNow;
+                        }
                         if (npP) {
                             // Position() is the position at LastUpdatedTime, not "now".
+                            bool fromApp = false;
                             try {
                                 const auto lastUpdated = timeline.LastUpdatedTime();
                                 const int64_t ageTicks = (winrt::clock::now() - lastUpdated).count();
                                 if (ageTicks > 0 && ageTicks < 10 * 10000000LL) {
                                     np = rawPos + ageTicks;
+                                    fromApp = true;
                                 }
                             } catch (...) {
                             }
+                            if (!fromApp) {
+                                // The app's timestamp is stale or missing (Apple Music reports the
+                                // position only on play / pause / seek): count from when we saw it.
+                                np = rawPos + static_cast<int64_t>(tickNow - ownRawSeenAt) * 10000;
+                            }
+                        }
+                        if (ne > 0 && np > ne) np = ne;
+                        if (loggedTimelineFor != srcId) {
+                            loggedTimelineFor = srcId;
+                            DI_LOG(L"[Media] timeline of %s: start %.1fs, position %.1fs, end %.1fs, seek %.1f-%.1fs",
+                                   srcId.c_str(), startT / 1e7, timeline.Position().count() / 1e7,
+                                   timeline.EndTime().count() / 1e7, timeline.MinSeekTime().count() / 1e7,
+                                   timeline.MaxSeekTime().count() / 1e7);
                         }
 
                         std::lock_guard lock(g_stateMutex);
@@ -9222,9 +9264,39 @@ void ToggleEndpointMute() {
 }
 
 // Shared by the scrubber's live drag updates and its on-release commit.
+// Standalone 0.9.1: one seek at a time. While the player is still busy with the
+// previous one, newer drag positions just replace the pending target, so a slow
+// player (Apple Music) isn't flooded with requests and ends at the last position.
+std::atomic<int64_t> g_seekPendingTicks{-1};
+std::atomic<bool> g_seekWorkerRunning{false};
+
+void SeekWorkerOnce(int64_t targetTicks);
+
 void SeekMediaToTicks(int64_t targetTicks) {
-    std::thread([targetTicks]() {
+    g_seekPendingTicks.store(targetTicks);
+    bool expected = false;
+    if (!g_seekWorkerRunning.compare_exchange_strong(expected, true)) {
+        return;  // the running worker will pick the new target up
+    }
+    std::thread([]() {
         winrt::init_apartment(winrt::apartment_type::multi_threaded);
+        for (;;) {
+            const int64_t target = g_seekPendingTicks.exchange(-1);
+            if (target < 0) {
+                g_seekWorkerRunning.store(false);
+                // A target may have arrived between the exchange and the store.
+                bool again = false;
+                if (g_seekPendingTicks.load() >= 0 && g_seekWorkerRunning.compare_exchange_strong(again, true)) {
+                    continue;
+                }
+                break;
+            }
+            SeekWorkerOnce(target);
+        }
+    }).detach();
+}
+
+void SeekWorkerOnce(int64_t targetTicks) {
         try {
             using Manager = winrt::Windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager;
             auto manager = Manager::RequestAsync().get();
@@ -9245,11 +9317,21 @@ void SeekMediaToTicks(int64_t targetTicks) {
                 if (!session) session = manager.GetCurrentSession();
 
                 if (session) {
-                    session.TryChangePlaybackPositionAsync(targetTicks).get();
+                    // Positions on the island count from StartTime; the player wants its own scale.
+                    const auto timeline = session.GetTimelineProperties();
+                    const int64_t absolute = targetTicks + (timeline ? timeline.StartTime().count() : 0);
+                    const bool ok = AwaitOr(session.TryChangePlaybackPositionAsync(absolute), 3000, false);
+                    if (!ok) {
+                        static std::atomic<int> s_logged{0};
+                        if (s_logged.fetch_add(1) < 3) {
+                            const bool enabled = session.GetPlaybackInfo().Controls().IsPlaybackPositionEnabled();
+                            DI_LOG(L"[Media] seek refused by %s (player allows seeking: %s)",
+                                   session.SourceAppUserModelId().c_str(), enabled ? L"yes" : L"no");
+                        }
+                    }
                 }
             }
         } catch (...) {}
-    }).detach();
 }
 
 // Resolves the SMTC session matching the island's current media source, falling
@@ -16749,6 +16831,14 @@ DWORD WINAPI RenderThreadProc(void*) {
         }
 
         bool isHoverExpanded = g_settings.expandOnHover ? hover : (hover && g_clickExpanded.load());
+        // Standalone 0.9.1: the game overlay (FPS / CPU / RAM) used to replace only
+        // the clock, so while music was playing it never appeared. Now it also takes
+        // the collapsed player's place; hovering / clicking / pinning still opens the
+        // full player, and a new track still pops up for a few seconds.
+        if (g_settings.gameOverlay && primary.kind == IslandKind::Media && !secondary &&
+            !isHoverExpanded && !pinned && !recentTrackChange) {
+            primary = ActivityForKind(IslandKind::Idle, g_settings, snapshot);
+        }
         const bool gameMetricsPresent = primary.kind == IslandKind::Idle &&
             g_settings.gameOverlay;
         if (gameMetricsPresent) {

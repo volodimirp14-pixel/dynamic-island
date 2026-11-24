@@ -525,7 +525,7 @@
         },
         {
           "value": "liquidglass",
-          "label": "Liquid Glass (как в iOS)"
+          "label": "Liquid Glass"
         }
       ],
       "default": "none"
@@ -534,7 +534,7 @@
       "key": "Themes.LiquidGlassStyle",
       "group": "Themes",
       "name": "Liquid Glass — стиль",
-      "description": "«С тонировкой» — стекло слегка размывает то, что за ним (нужны «Эффекты прозрачности» Windows). «Прозрачное» — как Clear в iOS 26.1: без размытия, работает и без эффектов прозрачности.",
+      "description": "«С тонировкой» — стекло слегка размывает то, что за ним (нужны «Эффекты прозрачности» Windows). «Прозрачное» — без размытия, работает и без эффектов прозрачности.",
       "type": "enum",
       "options": [
         {
