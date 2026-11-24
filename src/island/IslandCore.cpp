@@ -6989,12 +6989,14 @@ DWORD WINAPI BluetoothThreadProc(void*) {
                     *enumDone = true;
                 });
 
-            watcher.Added([&deviceCache, &cacheMutex, enumDone, &connectedIds, &nextBatteryRefresh](
+            watcher.Added([&deviceCache, &cacheMutex, enumDone, &connectedIds, &nextBatteryRefresh, label](
                               DeviceWatcher const&, DeviceInformation const& info) {
                 {
                     std::lock_guard lock(cacheMutex);
                     connectedIds.insert(std::wstring(info.Id().c_str()));
                 }
+                DI_LOG(L"[BT] %s watcher: added %s%s", label, info.Name().c_str(),
+                       *enumDone ? L"" : L" (already connected at start)");
                 // Windows needs a moment before it knows the battery of a new connection.
                 nextBatteryRefresh.store(std::min(nextBatteryRefresh.load(), NowSeconds() + 4.0));
                 // Devices reported before EnumerationCompleted are the
@@ -7014,7 +7016,7 @@ DWORD WINAPI BluetoothThreadProc(void*) {
                 HandleBluetoothConnected(info, deviceCache, cacheMutex);
             });
 
-            watcher.Updated([&cacheMutex, &connectedIds, &nextBatteryRefresh](
+            watcher.Updated([&cacheMutex, &connectedIds, &nextBatteryRefresh, &deviceCache, label](
                                 DeviceWatcher const&, DeviceInformationUpdate const& update) {
                 auto value = update.Properties().TryLookup(L"System.Devices.Aep.IsConnected");
                 if (!value) return;
@@ -7024,6 +7026,10 @@ DWORD WINAPI BluetoothThreadProc(void*) {
                 const std::wstring id = update.Id().c_str();
                 if (connected.Value()) connectedIds.insert(id);
                 else connectedIds.erase(id);
+                auto known = deviceCache.find(id);
+                DI_LOG(L"[BT] %s watcher: %s is now %s", label,
+                       known != deviceCache.end() ? known->second.name.c_str() : L"(unknown device)",
+                       connected.Value() ? L"connected" : L"disconnected");
                 nextBatteryRefresh.store(NowSeconds() + (connected.Value() ? 4.0 : 0.0));
             });
 
