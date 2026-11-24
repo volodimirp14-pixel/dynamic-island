@@ -25,6 +25,20 @@ jobs:
       - name: Build (${{ matrix.edition }})
         run: cmake --build build --config Release -- /m
 
+      - name: Check icon colour (${{ matrix.edition }})
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Drawing
+          foreach ($exe in @('build/Release/DynamicIsland.exe', 'build/Release/DynamicIslandLauncher.exe')) {
+            $bmp = [System.Drawing.Icon]::ExtractAssociatedIcon((Resolve-Path $exe)).ToBitmap()
+            $p = $bmp.GetPixel([int]($bmp.Width * 186 / 256), [int]($bmp.Height * 128 / 256))
+            Write-Host "$exe icon dot: R=$($p.R) G=$($p.G) B=$($p.B) A=$($p.A)"
+            $green = $p.G -gt $p.R + 60
+            $red = $p.R -gt $p.G + 60
+            if ('${{ matrix.edition }}' -eq 'Pro' -and -not $green) { throw "Pro icon dot is not green" }
+            if ('${{ matrix.edition }}' -eq 'Trial' -and -not $red) { throw "Trial icon dot is not red" }
+          }
+
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
