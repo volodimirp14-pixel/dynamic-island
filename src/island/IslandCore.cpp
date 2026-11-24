@@ -6793,7 +6793,14 @@ void RefreshBluetoothBatteries(const std::vector<std::pair<std::wstring, Bluetoo
             changed = old[i].name != items[i].name || old[i].percent != items[i].percent ||
                       old[i].charging != items[i].charging || old[i].category != items[i].category;
         }
-        if (changed) g_state.bluetoothBatteries = std::move(items);
+        if (changed) {
+            for (const BluetoothBatteryItem& it : items) {
+                DI_LOG(L"[BT] badge: %s (type %d, battery %d%%)", it.name.c_str(), static_cast<int>(it.category),
+                       it.percent);
+            }
+            if (items.empty()) DI_LOG(L"[BT] badge: no connected devices");
+            g_state.bluetoothBatteries = std::move(items);
+        }
     }
     if (changed) {
         g_layoutDirty = true;
@@ -7033,30 +7040,55 @@ DWORD WINAPI BluetoothThreadProc(void*) {
     // still connected. Watchers can miss a switch-off, and at start-up the
     // initial list can include a device Windows still remembers as connected.
     auto verifyConnected = [&]() {
-        std::vector<std::wstring> ids;
+        std::vector<std::pair<std::wstring, BluetoothDeviceCategory>> ids;
         {
             std::lock_guard lock(cacheMutex);
-            ids.assign(connectedIds.begin(), connectedIds.end());
+            for (const std::wstring& id : connectedIds) {
+                auto it = deviceCache.find(id);
+                ids.emplace_back(id, it != deviceCache.end() ? it->second.category : BluetoothDeviceCategory::Generic);
+            }
         }
-        for (const std::wstring& id : ids) {
+        for (const auto& [id, category] : ids) {
             bool stillConnected = true;
+            const wchar_t* why = L"";
             try {
-                if (auto classic = BluetoothDevice::FromIdAsync(winrt::hstring(id)).get()) {
-                    stillConnected = classic.ConnectionStatus() == BluetoothConnectionStatus::Connected;
-                } else if (auto le = BluetoothLEDevice::FromIdAsync(winrt::hstring(id)).get()) {
-                    stillConnected = le.ConnectionStatus() == BluetoothConnectionStatus::Connected;
-                }
-            } catch (...) {
+                BluetoothDevice classic{nullptr};
                 try {
-                    if (auto le = BluetoothLEDevice::FromIdAsync(winrt::hstring(id)).get()) {
-                        stillConnected = le.ConnectionStatus() == BluetoothConnectionStatus::Connected;
-                    }
+                    classic = BluetoothDevice::FromIdAsync(winrt::hstring(id)).get();
                 } catch (...) {
                 }
+                if (classic) {
+                    stillConnected = classic.ConnectionStatus() == BluetoothConnectionStatus::Connected;
+                    why = L"classic link is down";
+                } else if (auto le = BluetoothLEDevice::FromIdAsync(winrt::hstring(id)).get()) {
+                    stillConnected = le.ConnectionStatus() == BluetoothConnectionStatus::Connected;
+                    why = L"LE link is down";
+                    // Standalone 0.7.3: earbuds/headphones keep a low-energy link
+                    // (charging case, fast pairing) while the audio connection is
+                    // off. For audio devices, the classic (audio) link decides.
+                    if (stillConnected && (category == BluetoothDeviceCategory::Headphones ||
+                                           category == BluetoothDeviceCategory::Speaker)) {
+                        try {
+                            auto twin = BluetoothDevice::FromBluetoothAddressAsync(le.BluetoothAddress()).get();
+                            if (twin && twin.ConnectionStatus() != BluetoothConnectionStatus::Connected) {
+                                stillConnected = false;
+                                why = L"only the LE side is up, audio is off";
+                            }
+                        } catch (...) {
+                        }
+                    }
+                }
+            } catch (...) {
             }
             if (!stillConnected) {
-                std::lock_guard lock(cacheMutex);
-                connectedIds.erase(id);
+                std::wstring name;
+                {
+                    std::lock_guard lock(cacheMutex);
+                    connectedIds.erase(id);
+                    auto it = deviceCache.find(id);
+                    if (it != deviceCache.end()) name = it->second.name;
+                }
+                DI_LOG(L"[BT] not connected (%s): %s", why, name.c_str());
                 nextBatteryRefresh.store(NowSeconds());
             }
         }
