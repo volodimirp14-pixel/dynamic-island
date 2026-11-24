@@ -1,37 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <!-- Dynamic Island icon (trial): black pill, status dot. Transparent background. -->
-  <defs>
-    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#26262A"/>
-      <stop offset="0.45" stop-color="#0B0B0D"/>
-      <stop offset="1" stop-color="#000000"/>
-    </linearGradient>
-    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.34"/>
-      <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0.10"/>
-      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.20"/>
-    </linearGradient>
-    <radialGradient id="dot" cx="0.38" cy="0.34" r="0.75">
-      <stop offset="0" stop-color="#FF7A70"/>
-      <stop offset="0.6" stop-color="#FF453A"/>
-      <stop offset="1" stop-color="#D12A20"/>
-    </radialGradient>
-    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#FF453A" stop-opacity="0.55"/>
-      <stop offset="1" stop-color="#FF453A" stop-opacity="0"/>
-    </radialGradient>
-    <filter id="shadow" x="-20%" y="-40%" width="140%" height="190%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="5"/>
-      <feOffset dy="5"/>
-      <feComponentTransfer><feFuncA type="linear" slope="0.45"/></feComponentTransfer>
-      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-  </defs>
-  <g>
-    <rect x="4" y="66" width="248" height="124" rx="62" fill="url(#body)"/>
-  </g>
-  <rect x="7.5" y="69.5" width="241" height="117" rx="58.5" fill="none" stroke="url(#rim)" stroke-width="7"/>
-  <circle cx="186" cy="128" r="0" fill="none"/>
-  <circle cx="186" cy="128" r="27" fill="url(#dot)"/>
-  <ellipse cx="180" cy="119" rx="8" ry="5" fill="#FFFFFF" opacity="0.35"/>
+  <!-- Dynamic Island icon (trial), 16-32 px: same flat design, thicker pill and larger dot so it reads on the taskbar. -->
+  <rect x="4" y="64" width="248" height="128" rx="64" fill="#000000"/>
+  <circle cx="188" cy="128" r="34" fill="#FF453A"/>
 </svg>
