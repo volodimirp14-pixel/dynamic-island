@@ -15,11 +15,18 @@ add_compile_options(/utf-8 /permissive- /EHsc /W4 /Zc:__cplusplus /bigobj)
 # ── DynamicIsland.exe (the island) ──────────────────────────────────────────
 add_executable(DynamicIsland WIN32
   src/island/main.cpp
+  src/island/IslandCore.cpp
+  src/island/app/Control.cpp
   src/island/app/Paths.cpp
   src/island/app/SingleInstance.cpp
-  src/island/log/Log.cpp
   src/island/diag/Diagnostics.cpp
+  src/island/log/Log.cpp
+  src/island/settings/Settings.cpp
+  src/island/settings/SettingsWatcher.cpp
   res/island.rc
 )
 target_link_options(DynamicIsland PRIVATE /MANIFEST:NO)  # our own manifest comes from island.rc
-target_link_libraries(DynamicIsland PRIVATE windowsapp shell32 ole32 user32)
+# Same libraries the Windhawk mod linked (@compilerOptions), plus WinRT.
+target_link_libraries(DynamicIsland PRIVATE
+  windowsapp runtimeobject ole32 oleaut32 shcore d2d1 dwrite dwmapi gdi32 user32 shell32
+  windowscodecs setupapi winhttp pdh winmm)

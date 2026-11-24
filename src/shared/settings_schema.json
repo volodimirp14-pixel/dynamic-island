@@ -1,0 +1,2669 @@
+{
+  "schemaVersion": 1,
+  "groups": [
+    {
+      "key": "Appearance",
+      "name": "Appearance & Position"
+    },
+    {
+      "key": "Behavior",
+      "name": "Behavior & Visibility"
+    },
+    {
+      "key": "Animations",
+      "name": "Animations & Performance"
+    },
+    {
+      "key": "Themes",
+      "name": "Colors & Theming"
+    },
+    {
+      "key": "Indicators",
+      "name": "Privacy Indicators"
+    },
+    {
+      "key": "Modules",
+      "name": "Modules & Features"
+    },
+    {
+      "key": "Telegram",
+      "name": "Telegram"
+    },
+    {
+      "key": "Discord",
+      "name": "Discord"
+    },
+    {
+      "key": "Stocks",
+      "name": "Stocks"
+    },
+    {
+      "key": "GameMode",
+      "name": "Game mode"
+    },
+    {
+      "key": "QuietMode",
+      "name": "Do Not Disturb (island)"
+    },
+    {
+      "key": "Shortcuts",
+      "name": "Shortcuts & Hotkeys"
+    }
+  ],
+  "settings": [
+    {
+      "key": "Appearance.Position",
+      "group": "Appearance",
+      "name": "Position",
+      "description": "Where the island should appear on your screen.",
+      "type": "enum",
+      "options": [
+        {
+          "value": "top-center",
+          "label": "Top Center"
+        },
+        {
+          "value": "top-left",
+          "label": "Top Left"
+        },
+        {
+          "value": "top-right",
+          "label": "Top Right"
+        },
+        {
+          "value": "bottom-center",
+          "label": "Bottom Center"
+        },
+        {
+          "value": "bottom-left",
+          "label": "Bottom Left"
+        },
+        {
+          "value": "bottom-right",
+          "label": "Bottom Right"
+        }
+      ],
+      "default": "top-center"
+    },
+    {
+      "key": "Appearance.TargetMonitor",
+      "group": "Appearance",
+      "name": "Target Monitor",
+      "description": "Select the screen to display the island. If a display isn't found, it safely falls back to the Primary Monitor.(Extra Displays are given even if they don't exist because windhawk settings are static)",
+      "type": "enum",
+      "options": [
+        {
+          "value": "primary",
+          "label": "Primary Monitor"
+        },
+        {
+          "value": "1",
+          "label": "Display 1"
+        },
+        {
+          "value": "2",
+          "label": "Display 2"
+        },
+        {
+          "value": "3",
+          "label": "Display 3"
+        },
+        {
+          "value": "4",
+          "label": "Display 4"
+        },
+        {
+          "value": "5",
+          "label": "Display 5"
+        },
+        {
+          "value": "follow",
+          "label": "Follow Mouse (Active Monitor)"
+        }
+      ],
+      "default": "primary"
+    },
+    {
+      "key": "Appearance.OffsetX",
+      "group": "Appearance",
+      "name": "Offset X",
+      "description": "Adjust the horizontal position (in pixels). Positive values move it right, negative values move it left.",
+      "type": "int",
+      "default": 0
+    },
+    {
+      "key": "Appearance.OffsetY",
+      "group": "Appearance",
+      "name": "Offset Y",
+      "description": "Adjust the vertical position (in pixels). Positive values move it down, negative values move it up. Applies to every state unless the separate expanded offset below is turned on, in which case this becomes the collapsed/idle offset.",
+      "type": "int",
+      "default": 0
+    },
+    {
+      "key": "Appearance.SeparateExpandedOffsetY",
+      "group": "Appearance",
+      "name": "Use a separate Offset Y when expanded",
+      "description": "Lets the island sit at one height while collapsed and a different one while expanded. Useful for tucking the idle pill up near the screen edge while keeping the expanded dashboard somewhere comfortable to interact with.",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "Appearance.OffsetYExpanded",
+      "group": "Appearance",
+      "name": "Offset Y (expanded)",
+      "description": "Vertical position in pixels while the island is expanded. Only used when the separate expanded offset above is on. The island eases between this and Offset Y as it expands and collapses, so the two never snap.",
+      "type": "int",
+      "default": 0
+    },
+    {
+      "key": "Appearance.BorderMergedMode",
+      "group": "Appearance",
+      "name": "Border-Merged Mode",
+      "description": "Attach the island flush to the top edge of the monitor without a floating gap.",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "Appearance.ShapeStyle",
+      "group": "Appearance",
+      "name": "Island Shape Style",
+      "description": "Change the overall shape of the island (Pill, Windows 11, or macOS Notch).",
+      "type": "enum",
+      "options": [
+        {
+          "value": "default",
+          "label": "Default (Apple Pill)"
+        },
+        {
+          "value": "w11",
+          "label": "Windows 11 (Rounded Box)"
+        },
+        {
+          "value": "notch",
+          "label": "macOS Notch (Top Edge Flush)"
+        }
+      ],
+      "default": "default"
+    },
+    {
+      "key": "Appearance.ProgressStyle",
+      "group": "Appearance",
+      "name": "Progress bar style",
+      "description": "Look of the song progress bar in the expanded media player. Wavy and Squiggle animate while music is playing and flatten when paused.",
+      "type": "enum",
+      "options": [
+        {
+          "value": "slim",
+          "label": "Slim (classic bar)"
+        },
+        {
+          "value": "wavy",
+          "label": "Wavy"
+        },
+        {
+          "value": "squiggle",
+          "label": "Squiggle (slower, subtler wave)"
+        },
+        {
+          "value": "bar",
+          "label": "Bar (thick bar with a line thumb)"
+        }
+      ],
+      "default": "slim"
+    },
+    {
+      "key": "Appearance.SpectrumStyle",
+      "group": "Appearance",
+      "name": "Audio spectrum style",
+      "description": "Look of the live audio visualizer next to the album art (collapsed pill and expanded player). Pulse Orb, Plasma Thread and Peak Matrix use a real frequency analysis of the system audio, and each plays its own animation when the track changes.",
+      "type": "enum",
+      "options": [
+        {
+          "value": "bars",
+          "label": "Classic Bars"
+        },
+        {
+          "value": "led",
+          "label": "Peak Matrix"
+        },
+        {
+          "value": "plasma",
+          "label": "Plasma Thread"
+        },
+        {
+          "value": "orb",
+          "label": "Pulse Orb"
+        }
+      ],
+      "default": "bars"
+    },
+    {
+      "key": "Appearance.SizeScale",
+      "group": "Appearance",
+      "name": "Size scale",
+      "description": "Makes the entire island and its contents larger or smaller.",
+      "type": "enum",
+      "options": [
+        {
+          "value": "0.8",
+          "label": "0.8x"
+        },
+        {
+          "value": "1.0",
+          "label": "1.0x"
+        },
+        {
+          "value": "1.2",
+          "label": "1.2x"
+        },
+        {
+          "value": "1.5",
+          "label": "1.5x"
+        },
+        {
+          "value": "1.8",
+          "label": "1.8x"
+        },
+        {
+          "value": "2.0",
+          "label": "2.0x"
+        },
+        {
+          "value": "2.5",
+          "label": "2.5x"
+        }
+      ],
+      "default": "1.0"
+    },
+    {
+      "key": "Appearance.AutoDpiScale",
+      "group": "Appearance",
+      "name": "Auto DPI scaling",
+      "description": "Automatically scales the island to match your monitor's DPI. Recommended for 4K screens.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Behavior.AlwaysOnTop",
+      "group": "Behavior",
+      "name": "Always on top",
+      "description": "Keeps the island above all other windows. Turn this off if it blocks other apps.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Behavior.ExpandOnHover",
+      "group": "Behavior",
+      "name": "Expand on hover",
+      "description": "Expand the island automatically when hovered. If disabled, click to expand.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Behavior.AutoHideIdleSeconds",
+      "group": "Behavior",
+      "name": "Auto-hide island (all states)",
+      "description": "Hide the island (including idle, media, and other states) after this many seconds of inactivity. 0 to disable.",
+      "type": "enum",
+      "options": [
+        {
+          "value": "-1",
+          "label": "Hide instantly"
+        },
+        {
+          "value": "0",
+          "label": "Never hide (default)"
+        },
+        {
+          "value": "5",
+          "label": "Hide after 5 seconds"
+        },
+        {
+          "value": "10",
+          "label": "Hide after 10 seconds"
+        },
+        {
+          "value": "30",
+          "label": "Hide after 30 seconds"
+        },
+        {
+          "value": "60",
+          "label": "Hide after 60 seconds"
+        }
+      ],
+      "default": "0"
+    },
+    {
+      "key": "Behavior.AutoHideFullscreen",
+      "group": "Behavior",
+      "name": "Hide on full screen",
+      "description": "Automatically hide the island when playing a video or app in full screen mode.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Behavior.UnhideOnHover",
+      "group": "Behavior",
+      "name": "Unhide on hover",
+      "description": "Allow the hidden island to reappear when you hover your mouse over it.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Animations.TargetFPS",
+      "group": "Animations",
+      "name": "Refresh rate / FPS",
+      "description": "Set the animation frame rate. Choose Auto to dynamically match your active monitor's refresh rate (up to 360Hz/500Hz), or select a fixed FPS.",
+      "type": "enum",
+      "options": [
+        {
+          "value": "auto",
+          "label": "Auto (Match Monitor Refresh Rate)"
+        },
+        {
+          "value": "60",
+          "label": "60 FPS (Eco / Standard)"
+        },
+        {
+          "value": "90",
+          "label": "90 FPS"
+        },
+        {
+          "value": "120",
+          "label": "120 FPS"
+        },
+        {
+          "value": "144",
+          "label": "144 FPS"
+        },
+        {
+          "value": "165",
+          "label": "165 FPS"
+        },
+        {
+          "value": "240",
+          "label": "240 FPS"
+        },
+        {
+          "value": "360",
+          "label": "360 FPS (Ultra Smooth)"
+        },
+        {
+          "value": "500",
+          "label": "500 FPS (Maximum / Uncapped)"
+        }
+      ],
+      "default": "auto"
+    },
+    {
+      "key": "Animations.AnimationStyle",
+      "group": "Animations",
+      "name": "Animation bounciness / style",
+      "description": "Control the spring physics and feel of the animation.",
+      "type": "enum",
+      "options": [
+        {
+          "value": "smooth",
+          "label": "Smooth (No bounciness / Critically damped)"
+        },
+        {
+          "value": "default",
+          "label": "Default (Balanced Apple-like spring)"
+        },
+        {
+          "value": "bouncy",
+          "label": "Bouncy (Dynamic elastic spring)"
+        },
+        {
+          "value": "snappy",
+          "label": "Snappy (High stiffness, quick settle)"
+        }
+      ],
+      "default": "default"
+    },
+    {
+      "key": "Animations.AnimationSpeed",
+      "group": "Animations",
+      "name": "Animation speed",
+      "description": "How fast the island expands and collapses.",
+      "type": "enum",
+      "options": [
+        {
+          "value": "very-slow",
+          "label": "Very Slow (0.5x)"
+        },
+        {
+          "value": "slow",
+          "label": "Slow (0.75x)"
+        },
+        {
+          "value": "normal",
+          "label": "Normal (1.0x)"
+        },
+        {
+          "value": "fast",
+          "label": "Fast (1.35x)"
+        },
+        {
+          "value": "very-fast",
+          "label": "Very Fast (1.65x)"
+        },
+        {
+          "value": "ultra-fast",
+          "label": "Ultra Fast (2.0x)"
+        }
+      ],
+      "default": "normal"
+    },
+    {
+      "key": "Themes.ThemePreset",
+      "group": "Themes",
+      "name": "Theme preset",
+      "description": "Select a curated color theme, or choose Custom to use your own hex colors below.",
+      "type": "enum",
+      "options": [
+        {
+          "value": "obsidian",
+          "label": "Obsidian - true black (Default)"
+        },
+        {
+          "value": "graphite",
+          "label": "Graphite - neutral Windows 11 dark"
+        },
+        {
+          "value": "slate",
+          "label": "Slate - cool blue-grey"
+        },
+        {
+          "value": "nord",
+          "label": "Nord - the Nord palette"
+        },
+        {
+          "value": "evergreen",
+          "label": "Evergreen - deep green"
+        },
+        {
+          "value": "espresso",
+          "label": "Espresso - warm brown"
+        },
+        {
+          "value": "plum",
+          "label": "Plum - muted mauve"
+        },
+        {
+          "value": "porcelain",
+          "label": "Porcelain - light theme"
+        },
+        {
+          "value": "custom",
+          "label": "Custom Colors (Use Hex Below)"
+        }
+      ],
+      "default": "obsidian"
+    },
+    {
+      "key": "Themes.PillOpacity",
+      "group": "Themes",
+      "name": "Pill transparency",
+      "description": "35 to 100. Lower values make the island more see-through.",
+      "type": "int",
+      "default": 96
+    },
+    {
+      "key": "Themes.TintIntensity",
+      "group": "Themes",
+      "name": "Background tint intensity",
+      "description": "0 to 100. Controls how dark the background tint behind the island is.",
+      "type": "int",
+      "default": 72
+    },
+    {
+      "key": "Themes.BackdropMaterial",
+      "group": "Themes",
+      "name": "Backdrop material (real Windows blur)",
+      "description": "Paints genuine Windows blur or acrylic behind the island so your desktop and windows show through it, using the same effect the system uses for its own surfaces. Acrylic adds Windows' frosted grain and a tint of your background colour (see Acrylic tint strength). Requires Windows 10 1803 or newer, and Windows' Transparency effects must be turned ON (Settings > Personalization > Colors > Transparency effects, or on Windows 11 also Settings > Accessibility > Visual effects). If it is off, or Battery saver is on, you will only see a flat tint with no blur. When this is on, use Backdrop fill opacity below to control how much of the blur comes through.",
+      "type": "enum",
+      "options": [
+        {
+          "value": "none",
+          "label": "Off (solid background)"
+        },
+        {
+          "value": "blur",
+          "label": "Blur"
+        },
+        {
+          "value": "acrylic",
+          "label": "Acrylic (frosted)"
+        },
+        {
+          "value": "liquidglass",
+          "label": "Liquid Glass (как в iOS)"
+        }
+      ],
+      "default": "none"
+    },
+    {
+      "key": "Themes.LiquidGlassStyle",
+      "group": "Themes",
+      "name": "Liquid Glass - стиль",
+      "description": "Работает, только когда в \"Backdrop material\" выбрано Liquid Glass. \"С тонировкой\" - стекло слегка размывает то, что за ним (нужны \"Эффекты прозрачности\" Windows). \"Прозрачное\" - как вариант Clear в iOS 26.1 - без размытия, видно рабочий стол, работает даже без эффектов прозрачности.",
+      "type": "enum",
+      "options": [
+        {
+          "value": "tinted",
+          "label": "С тонировкой (размытие)"
+        },
+        {
+          "value": "clear",
+          "label": "Прозрачное (без размытия)"
+        }
+      ],
+      "default": "tinted"
+    },
+    {
+      "key": "Themes.LiquidGlassClarity",
+      "group": "Themes",
+      "name": "Liquid Glass - прозрачность стекла",
+      "description": "0 - 100. Чем больше, тем прозрачнее стекло и тем сильнее видно фон. Если на светлых обоях плохо читается текст, уменьшите.",
+      "type": "int",
+      "default": 60
+    },
+    {
+      "key": "Themes.LiquidGlassShine",
+      "group": "Themes",
+      "name": "Liquid Glass - блики и края",
+      "description": "0 - 200. Сила бликов, светлой кромки и толщины стекла по краям.",
+      "type": "int",
+      "default": 100
+    },
+    {
+      "key": "Themes.BackdropFillOpacity",
+      "group": "Themes",
+      "name": "Backdrop fill opacity",
+      "description": "0 to 100. Only used when a Backdrop material is enabled. How opaque the island's own background stays on top of the blur - lower values let more of the blurred desktop through. Has no effect when the backdrop is Off.",
+      "type": "int",
+      "default": 45
+    },
+    {
+      "key": "Themes.BackdropTint",
+      "group": "Themes",
+      "name": "Acrylic tint strength",
+      "description": "0 to 100. How strongly your background colour tints the backdrop. Acrylic uses the full strength; Blur uses a lighter wash of the same colour so the desktop stays readable.",
+      "type": "int",
+      "default": 55
+    },
+    {
+      "key": "Themes.MaterialDepth",
+      "group": "Themes",
+      "name": "Depth shading",
+      "description": "Adds soft downward shading and the accent wash so the island has depth instead of looking like one flat fill. No edge highlights or rim lighting are involved. Turn off for a completely flat look.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Themes.DropShadow",
+      "group": "Themes",
+      "name": "Soft drop shadow",
+      "description": "Casts a soft shadow beneath the island to lift it off the desktop.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Themes.AccentBloom",
+      "group": "Themes",
+      "name": "Accent bloom intensity",
+      "description": "0 to 200. Strength of the soft accent-coloured wash bleeding in from the top of the island. Driven by album art when the accent mode is Auto. Set to 0 to remove it.",
+      "type": "int",
+      "default": 100
+    },
+    {
+      "key": "Themes.TextScale",
+      "group": "Themes",
+      "name": "Text size",
+      "description": "70 to 160. Scales all island text independently of the overall Size scale, so you can keep the island compact while making the clock and labels easier to read.",
+      "type": "int",
+      "default": 100
+    },
+    {
+      "key": "Themes.AccentColorMode",
+      "group": "Themes",
+      "name": "Accent color mode",
+      "description": "How the glowing accent color is chosen. Auto extracts it from album art.",
+      "type": "enum",
+      "options": [
+        {
+          "value": "auto",
+          "label": "Auto, from album art"
+        },
+        {
+          "value": "system",
+          "label": "System (Device Accent)"
+        },
+        {
+          "value": "custom",
+          "label": "Custom hex"
+        }
+      ],
+      "default": "auto"
+    },
+    {
+      "key": "Themes.CustomAccentHex",
+      "group": "Themes",
+      "name": "Custom accent hex",
+      "description": "The hex color to use when the accent mode is set to Custom.",
+      "type": "string",
+      "default": "#4cc9f0"
+    },
+    {
+      "key": "Themes.CalendarAccent",
+      "group": "Themes",
+      "name": "Calendar accent color",
+      "description": "Accent color for the calendar's month name and today's marker. Default uses the island's accent color mode; System always uses the Windows accent.",
+      "type": "enum",
+      "options": [
+        {
+          "value": "red",
+          "label": "Default (Island accent)"
+        },
+        {
+          "value": "system",
+          "label": "System (Device Accent)"
+        }
+      ],
+      "default": "red"
+    },
+    {
+      "key": "Themes.ClockAccentGlow",
+      "group": "Themes",
+      "name": "Show clock background circle/glow",
+      "description": "Display the soft accent circle/glow behind the time in the expanded clock view. Turn off for a clean, minimal clock without background glow.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Themes.FontFamily",
+      "group": "Themes",
+      "name": "Font family",
+      "description": "Custom font family for island text (e.g. Segoe UI, Arial, Aptos, Consolas). Leave empty for system default.",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "Themes.ContourBorderMode",
+      "group": "Themes",
+      "name": "Contour border",
+      "description": "Choose the island's border style. Default uses the theme's matching border, Auto extracts the border color from album art, and Borderless removes all outer border outlines.",
+      "type": "enum",
+      "options": [
+        {
+          "value": "default",
+          "label": "Default"
+        },
+        {
+          "value": "auto",
+          "label": "Auto (From album art)"
+        },
+        {
+          "value": "borderless",
+          "label": "Borderless"
+        }
+      ],
+      "default": "default"
+    },
+    {
+      "key": "Themes.ContourBorderHex",
+      "group": "Themes",
+      "name": "Contour border hex color",
+      "description": "Hex color for the island contour stroke. Changing it from the default overrides the selected Theme preset; restore the default to go back to the preset.",
+      "type": "string",
+      "default": "#1E1E22"
+    },
+    {
+      "key": "Themes.PillBgColor",
+      "group": "Themes",
+      "name": "Pill background color",
+      "description": "Hex color for the island background. Accepts 3, 4, 6 or 8 hex digits, so use the 8-digit RRGGBBAA form for a translucent background (for example 0D0D0FB0) while keeping the text and icons opaque. Changing it from the default overrides the selected Theme preset; restore the default to go back to the preset.",
+      "type": "string",
+      "default": "#08080A"
+    },
+    {
+      "key": "Themes.TextPrimaryColor",
+      "group": "Themes",
+      "name": "Primary text color",
+      "description": "Accessible hex color for titles and main text. Changing it from the default overrides the selected Theme preset; restore the default to go back to the preset.",
+      "type": "string",
+      "default": "#FFFFFF"
+    },
+    {
+      "key": "Themes.TextSecondaryColor",
+      "group": "Themes",
+      "name": "Secondary text color",
+      "description": "Accessible hex color for artist names and muted labels. Changing it from the default overrides the selected Theme preset; restore the default to go back to the preset.",
+      "type": "string",
+      "default": "#9B9BA5"
+    },
+    {
+      "key": "Indicators.PrivacyDots",
+      "group": "Indicators",
+      "name": "Show privacy indicators (Mic & Camera)",
+      "description": "Master toggle to display the iOS-style privacy dots when microphone or camera is in use.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Indicators.PrivacyDotsMic",
+      "group": "Indicators",
+      "name": "Show microphone indicator (Orange dot)",
+      "description": "Show the orange dot when microphone is in use. Turn off if background apps (like Discord/OBS) keep it permanently active.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Indicators.PrivacyDotsMicHex",
+      "group": "Indicators",
+      "name": "Microphone dot color",
+      "description": "Custom hex color for microphone privacy indicator.",
+      "type": "string",
+      "default": "#FF9500"
+    },
+    {
+      "key": "Indicators.PrivacyDotsCam",
+      "group": "Indicators",
+      "name": "Show camera indicator (Green dot)",
+      "description": "Show the green dot when webcam is in use.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Indicators.PrivacyDotsCamHex",
+      "group": "Indicators",
+      "name": "Camera dot color",
+      "description": "Custom hex color for camera privacy indicator.",
+      "type": "string",
+      "default": "#34C759"
+    },
+    {
+      "key": "Modules.Media",
+      "group": "Modules",
+      "name": "Media module",
+      "description": "Shows album art, song info, and playback controls when music is playing.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Modules.MediaAutoExpand",
+      "group": "Modules",
+      "name": "Auto-expand on track change",
+      "description": "Automatically expand the island when a new song or video starts playing. If disabled, album art updates smoothly in the collapsed pill without unprompted expansion.",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "Modules.MediaPillClock",
+      "group": "Modules",
+      "name": "Show clock in the collapsed media pill",
+      "description": "While media is playing, the collapsed pill also shows the current time on the left, separated from the album cover by a thin divider. Hovering still opens the normal player. Uses the same 12h/24h and seconds options as the clock below. Off by default.",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "Modules.Volume",
+      "group": "Modules",
+      "name": "Volume slider flyout",
+      "description": "Shows a volume slider banner on the island when adjusting system volume. Disable if you prefer the default Windows volume flyout.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Modules.Brightness",
+      "group": "Modules",
+      "name": "Brightness slider flyout",
+      "description": "Shows a brightness slider banner on the island when you change the screen brightness. Works with a laptop's built-in display. Disable if you prefer the default Windows brightness flyout.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Modules.Battery",
+      "group": "Modules",
+      "name": "Battery module",
+      "description": "Shows an alert when your laptop battery is running low.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Modules.BluetoothIndicator",
+      "group": "Modules",
+      "name": "Bluetooth connect/disconnect indicator",
+      "description": "Shows a card with the device name, category icon, and battery level (if available) when a Bluetooth device connects or disconnects.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Modules.BluetoothShowBattery",
+      "group": "Modules",
+      "name": "Show Bluetooth battery level",
+      "description": "Reads battery level over BLE GATT when the device supports it. Not all classic Bluetooth devices report battery this way — when unavailable, only a Connected/Disconnected label is shown.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Modules.Progress",
+      "group": "Modules",
+      "name": "Progress module",
+      "description": "Shows a progress ring around the island for downloads or file copies.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Modules.TimerModule",
+      "group": "Modules",
+      "name": "Focus Timer module",
+      "description": "Enables a Pomodoro-style focus/break timer, startable from the island's right-click menu.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Modules.HardwareMonitorModule",
+      "group": "Modules",
+      "name": "Include Hardware Monitor in scroll loop",
+      "description": "Add CPU, GPU, RAM, FPS and Network stats card to mouse-wheel scroll loop.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Modules.GameOverlay",
+      "group": "Modules",
+      "name": "Enable game overlay mode",
+      "description": "Replaces the clock with live stats like FPS, CPU, and RAM usage.",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "Modules.ShowMetricText",
+      "group": "Modules",
+      "name": "Show labels in metric chips",
+      "description": "Adds text labels (like \"CPU\") inside the game overlay bars.",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "Modules.Weather",
+      "group": "Modules",
+      "name": "Weather module",
+      "description": "Shows the weather on the right side of the pill. Turn off to only show the clock.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Modules.WeatherCity",
+      "group": "Modules",
+      "name": "Weather City (Optional)",
+      "description": "Enter your city (e.g. London). Leave blank to use auto IP geolocation.",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "Modules.WeatherFahrenheit",
+      "group": "Modules",
+      "name": "Use Fahrenheit",
+      "description": "Display weather temperature and wind speed in imperial units.",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "Modules.Language",
+      "group": "Modules",
+      "name": "Language",
+      "description": "Language for the island's own text labels. Auto follows your Windows display language.",
+      "type": "enum",
+      "options": [
+        {
+          "value": "auto",
+          "label": "Auto (Follow Windows)"
+        },
+        {
+          "value": "en",
+          "label": "English"
+        },
+        {
+          "value": "fr",
+          "label": "Français (French)"
+        },
+        {
+          "value": "es",
+          "label": "Español (Spanish)"
+        },
+        {
+          "value": "de",
+          "label": "Deutsch (German)"
+        },
+        {
+          "value": "pt",
+          "label": "Português (Portuguese)"
+        },
+        {
+          "value": "it",
+          "label": "Italiano (Italian)"
+        },
+        {
+          "value": "ru",
+          "label": "Русский (Russian)"
+        },
+        {
+          "value": "tr",
+          "label": "Türkçe (Turkish)"
+        },
+        {
+          "value": "hi",
+          "label": "हिन्दी (Hindi)"
+        },
+        {
+          "value": "zh",
+          "label": "简体中文 (Simplified Chinese)"
+        },
+        {
+          "value": "ja",
+          "label": "日本語 (Japanese)"
+        },
+        {
+          "value": "ko",
+          "label": "한국어 (Korean)"
+        }
+      ],
+      "default": "auto"
+    },
+    {
+      "key": "Modules.ClockFormat",
+      "group": "Modules",
+      "name": "Clock format",
+      "description": "Choose 12-hour or 24-hour time, or follow your Windows locale setting.",
+      "type": "enum",
+      "options": [
+        {
+          "value": "system",
+          "label": "Follow Windows locale"
+        },
+        {
+          "value": "12h",
+          "label": "12-hour (3:07 PM)"
+        },
+        {
+          "value": "24h",
+          "label": "24-hour (15:07)"
+        }
+      ],
+      "default": "system"
+    },
+    {
+      "key": "Modules.ShowSeconds",
+      "group": "Modules",
+      "name": "Show seconds on the clock",
+      "description": "Include seconds in the expanded clock. Costs a little more CPU because the clock then redraws every second.",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "Modules.DateFormat",
+      "group": "Modules",
+      "name": "Custom date format",
+      "description": "Custom date pattern for the idle dashboard. Leave empty to follow your Windows locale. Supports yyyy (year), MM / M (month), dd / d (day), MMM (short month name), MMMM (full month name), ddd / dddd (weekday). Any other characters are printed as-is, so CJK formats like yyyy年MM月dd日 work.",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "Modules.DateFirst",
+      "group": "Modules",
+      "name": "Show date above the time",
+      "description": "Swap the idle dashboard so the date is the headline and the time sits beneath it.",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "Modules.FirstDayOfWeek",
+      "group": "Modules",
+      "name": "First day of the week",
+      "description": "Which weekday the calendar grid starts on. Auto follows your Windows regional format.",
+      "type": "enum",
+      "options": [
+        {
+          "value": "auto",
+          "label": "Auto (Follow Windows)"
+        },
+        {
+          "value": "monday",
+          "label": "Monday"
+        },
+        {
+          "value": "sunday",
+          "label": "Sunday"
+        }
+      ],
+      "default": "auto"
+    },
+    {
+      "key": "Modules.MediaExpandBlocklist",
+      "group": "Modules",
+      "name": "Never auto-expand for these apps",
+      "description": "Comma-separated list of app or site names that should never make the island expand on a track change, while still updating quietly in the collapsed pill. Matched loosely against the media source and title, for example: chrome, tiktok, youtube.",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "Modules.GameOverlayShowFps",
+      "group": "Modules",
+      "name": "Game overlay - show FPS",
+      "description": "Include the frame rate in the game overlay strip.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Modules.GameOverlayShowCpu",
+      "group": "Modules",
+      "name": "Game overlay - show CPU",
+      "description": "Include CPU utilization in the game overlay strip.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Modules.GameOverlayShowGpu",
+      "group": "Modules",
+      "name": "Game overlay - show GPU",
+      "description": "Include GPU utilization in the game overlay strip.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Modules.GameOverlayShowRam",
+      "group": "Modules",
+      "name": "Game overlay - show RAM",
+      "description": "Include memory usage in the game overlay strip.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Modules.GameOverlayShowDisk",
+      "group": "Modules",
+      "name": "Game overlay - show disk",
+      "description": "Include disk usage in the game overlay strip.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Modules.GameOverlayCompact",
+      "group": "Modules",
+      "name": "Game overlay - compact size",
+      "description": "Shrink the game overlay to a narrow strip that fits neatly inside the taskbar area.",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "Telegram.Enabled",
+      "group": "Telegram",
+      "name": "Сообщения Telegram в острове",
+      "description": "Показывать входящие сообщения Telegram Desktop в Dynamic Island. Нужно разрешение Windows \"Разрешить приложениям доступ к уведомлениям\" и включённые уведомления Windows в самом Telegram.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Telegram.SuppressWindowsBanner",
+      "group": "Telegram",
+      "name": "Не показывать баннер Windows для Telegram",
+      "description": "Мод выключает для Telegram параметр Windows \"Показывать баннеры уведомлений\", чтобы сообщение показывал только остров. Исходное значение сохраняется и возвращается, когда этот пункт или мод выключают.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Telegram.DisplaySeconds",
+      "group": "Telegram",
+      "name": "Время показа сообщения (сек.)",
+      "type": "int",
+      "default": 6
+    },
+    {
+      "key": "Telegram.MaxMessages",
+      "group": "Telegram",
+      "name": "Сколько последних сообщений показывать сразу (1-5)",
+      "type": "int",
+      "default": 3
+    },
+    {
+      "key": "Telegram.ShowMessageText",
+      "group": "Telegram",
+      "name": "Показывать текст сообщения",
+      "description": "Если выключить, вместо текста будет написано \"Новое сообщение\".",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Telegram.RespectWindowsDnD",
+      "group": "Telegram",
+      "name": "Учитывать \"Не беспокоить\" Windows (вне игр)",
+      "description": "Пока включён системный режим \"Не беспокоить\", сообщения не показываются. Во время игр не учитывается, потому что Windows включает его в играх автоматически.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Telegram.ClearFromNotificationCenter",
+      "group": "Telegram",
+      "name": "Удалять сообщение из центра уведомлений после показа",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "Telegram.DebugLog",
+      "group": "Telegram",
+      "name": "Диагностический лог",
+      "description": "Пишет в лог Windhawk структуру уведомлений Telegram (включая текст сообщений). Включайте только на время проверки.",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "Discord.Enabled",
+      "group": "Discord",
+      "name": "Сообщения Discord в острове",
+      "description": "Такая же карточка, как у Telegram - кто написал, текст, канал и сервер. Время показа, число сообщений и показ текста берутся из настроек Telegram.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Discord.ShowOverGames",
+      "group": "Discord",
+      "name": "Показывать сообщения Discord поверх игр",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Discord.SuppressWindowsBanner",
+      "group": "Discord",
+      "name": "Не показывать баннер Windows для Discord",
+      "description": "Сообщение Discord появляется только в острове, а в Windows тихо уходит в центр уведомлений. Исходная настройка Windows возвращается, когда этот пункт или мод выключают.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Stocks.Enabled",
+      "group": "Stocks",
+      "name": "Вкладка «Акции»",
+      "description": "Отдельная вкладка развёрнутого острова с 6 графиками. Данные берутся с Yahoo Finance (без аккаунта и ключей, отправляются только тикеры). Могут отставать до 15-20 минут, у некоторых бирж больше.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Stocks.Range",
+      "group": "Stocks",
+      "name": "Период графика",
+      "type": "enum",
+      "options": [
+        {
+          "value": "1d",
+          "label": "1 день"
+        },
+        {
+          "value": "5d",
+          "label": "5 дней"
+        },
+        {
+          "value": "1mo",
+          "label": "1 месяц"
+        },
+        {
+          "value": "6mo",
+          "label": "6 месяцев"
+        },
+        {
+          "value": "1y",
+          "label": "1 год"
+        }
+      ],
+      "default": "1d"
+    },
+    {
+      "key": "Stocks.RefreshMinutes",
+      "group": "Stocks",
+      "name": "Обновлять каждые (мин.)",
+      "description": "1 - 60. Обновление идёт, пока вкладку смотрели последние 10 минут; иначе запросы не отправляются.",
+      "type": "int",
+      "default": 2
+    },
+    {
+      "key": "Stocks.Stock1",
+      "group": "Stocks",
+      "name": "Акция 1",
+      "type": "enum",
+      "options": [
+        {
+          "value": "^GSPC",
+          "label": "S&P 500 — индекс"
+        },
+        {
+          "value": "AAPL",
+          "label": "AAPL — Apple"
+        },
+        {
+          "value": "MSFT",
+          "label": "MSFT — Microsoft"
+        },
+        {
+          "value": "NVDA",
+          "label": "NVDA — NVIDIA"
+        },
+        {
+          "value": "GOOGL",
+          "label": "GOOGL — Alphabet (Google)"
+        },
+        {
+          "value": "AMZN",
+          "label": "AMZN — Amazon"
+        },
+        {
+          "value": "META",
+          "label": "META — Meta Platforms"
+        },
+        {
+          "value": "TSLA",
+          "label": "TSLA — Tesla"
+        },
+        {
+          "value": "SPCX",
+          "label": "SPCX — SpaceX"
+        },
+        {
+          "value": "BRK-B",
+          "label": "BRK-B — Berkshire Hathaway"
+        },
+        {
+          "value": "AVGO",
+          "label": "AVGO — Broadcom"
+        },
+        {
+          "value": "TSM",
+          "label": "TSM — TSMC"
+        },
+        {
+          "value": "LLY",
+          "label": "LLY — Eli Lilly"
+        },
+        {
+          "value": "JPM",
+          "label": "JPM — JPMorgan Chase"
+        },
+        {
+          "value": "V",
+          "label": "V — Visa"
+        },
+        {
+          "value": "MA",
+          "label": "MA — Mastercard"
+        },
+        {
+          "value": "WMT",
+          "label": "WMT — Walmart"
+        },
+        {
+          "value": "ORCL",
+          "label": "ORCL — Oracle"
+        },
+        {
+          "value": "XOM",
+          "label": "XOM — Exxon Mobil"
+        },
+        {
+          "value": "UNH",
+          "label": "UNH — UnitedHealth"
+        },
+        {
+          "value": "NFLX",
+          "label": "NFLX — Netflix"
+        },
+        {
+          "value": "COST",
+          "label": "COST — Costco"
+        },
+        {
+          "value": "JNJ",
+          "label": "JNJ — Johnson & Johnson"
+        },
+        {
+          "value": "PG",
+          "label": "PG — Procter & Gamble"
+        },
+        {
+          "value": "HD",
+          "label": "HD — Home Depot"
+        },
+        {
+          "value": "ABBV",
+          "label": "ABBV — AbbVie"
+        },
+        {
+          "value": "BAC",
+          "label": "BAC — Bank of America"
+        },
+        {
+          "value": "KO",
+          "label": "KO — Coca-Cola"
+        },
+        {
+          "value": "PEP",
+          "label": "PEP — PepsiCo"
+        },
+        {
+          "value": "MCD",
+          "label": "MCD — McDonald's"
+        },
+        {
+          "value": "CVX",
+          "label": "CVX — Chevron"
+        },
+        {
+          "value": "AMD",
+          "label": "AMD — AMD"
+        },
+        {
+          "value": "ASML",
+          "label": "ASML — ASML"
+        },
+        {
+          "value": "SAP",
+          "label": "SAP — SAP"
+        },
+        {
+          "value": "CRM",
+          "label": "CRM — Salesforce"
+        },
+        {
+          "value": "ADBE",
+          "label": "ADBE — Adobe"
+        },
+        {
+          "value": "PLTR",
+          "label": "PLTR — Palantir"
+        },
+        {
+          "value": "INTC",
+          "label": "INTC — Intel"
+        },
+        {
+          "value": "IBM",
+          "label": "IBM — IBM"
+        },
+        {
+          "value": "DIS",
+          "label": "DIS — Disney"
+        },
+        {
+          "value": "NKE",
+          "label": "NKE — Nike"
+        },
+        {
+          "value": "UBER",
+          "label": "UBER — Uber"
+        },
+        {
+          "value": "NVO",
+          "label": "NVO — Novo Nordisk"
+        },
+        {
+          "value": "AZN",
+          "label": "AZN — AstraZeneca"
+        },
+        {
+          "value": "SHEL",
+          "label": "SHEL — Shell"
+        },
+        {
+          "value": "TM",
+          "label": "TM — Toyota"
+        },
+        {
+          "value": "SONY",
+          "label": "SONY — Sony"
+        },
+        {
+          "value": "BABA",
+          "label": "BABA — Alibaba"
+        },
+        {
+          "value": "TCEHY",
+          "label": "TCEHY — Tencent"
+        },
+        {
+          "value": "005930.KS",
+          "label": "005930.KS — Samsung Electronics (Seoul)"
+        },
+        {
+          "value": "2222.SR",
+          "label": "2222.SR — Saudi Aramco (Riyadh)"
+        },
+        {
+          "value": "MC.PA",
+          "label": "MC.PA — LVMH (Paris)"
+        }
+      ],
+      "default": "AAPL"
+    },
+    {
+      "key": "Stocks.Stock2",
+      "group": "Stocks",
+      "name": "Акция 2",
+      "type": "enum",
+      "options": [
+        {
+          "value": "^GSPC",
+          "label": "S&P 500 — индекс"
+        },
+        {
+          "value": "AAPL",
+          "label": "AAPL — Apple"
+        },
+        {
+          "value": "MSFT",
+          "label": "MSFT — Microsoft"
+        },
+        {
+          "value": "NVDA",
+          "label": "NVDA — NVIDIA"
+        },
+        {
+          "value": "GOOGL",
+          "label": "GOOGL — Alphabet (Google)"
+        },
+        {
+          "value": "AMZN",
+          "label": "AMZN — Amazon"
+        },
+        {
+          "value": "META",
+          "label": "META — Meta Platforms"
+        },
+        {
+          "value": "TSLA",
+          "label": "TSLA — Tesla"
+        },
+        {
+          "value": "SPCX",
+          "label": "SPCX — SpaceX"
+        },
+        {
+          "value": "BRK-B",
+          "label": "BRK-B — Berkshire Hathaway"
+        },
+        {
+          "value": "AVGO",
+          "label": "AVGO — Broadcom"
+        },
+        {
+          "value": "TSM",
+          "label": "TSM — TSMC"
+        },
+        {
+          "value": "LLY",
+          "label": "LLY — Eli Lilly"
+        },
+        {
+          "value": "JPM",
+          "label": "JPM — JPMorgan Chase"
+        },
+        {
+          "value": "V",
+          "label": "V — Visa"
+        },
+        {
+          "value": "MA",
+          "label": "MA — Mastercard"
+        },
+        {
+          "value": "WMT",
+          "label": "WMT — Walmart"
+        },
+        {
+          "value": "ORCL",
+          "label": "ORCL — Oracle"
+        },
+        {
+          "value": "XOM",
+          "label": "XOM — Exxon Mobil"
+        },
+        {
+          "value": "UNH",
+          "label": "UNH — UnitedHealth"
+        },
+        {
+          "value": "NFLX",
+          "label": "NFLX — Netflix"
+        },
+        {
+          "value": "COST",
+          "label": "COST — Costco"
+        },
+        {
+          "value": "JNJ",
+          "label": "JNJ — Johnson & Johnson"
+        },
+        {
+          "value": "PG",
+          "label": "PG — Procter & Gamble"
+        },
+        {
+          "value": "HD",
+          "label": "HD — Home Depot"
+        },
+        {
+          "value": "ABBV",
+          "label": "ABBV — AbbVie"
+        },
+        {
+          "value": "BAC",
+          "label": "BAC — Bank of America"
+        },
+        {
+          "value": "KO",
+          "label": "KO — Coca-Cola"
+        },
+        {
+          "value": "PEP",
+          "label": "PEP — PepsiCo"
+        },
+        {
+          "value": "MCD",
+          "label": "MCD — McDonald's"
+        },
+        {
+          "value": "CVX",
+          "label": "CVX — Chevron"
+        },
+        {
+          "value": "AMD",
+          "label": "AMD — AMD"
+        },
+        {
+          "value": "ASML",
+          "label": "ASML — ASML"
+        },
+        {
+          "value": "SAP",
+          "label": "SAP — SAP"
+        },
+        {
+          "value": "CRM",
+          "label": "CRM — Salesforce"
+        },
+        {
+          "value": "ADBE",
+          "label": "ADBE — Adobe"
+        },
+        {
+          "value": "PLTR",
+          "label": "PLTR — Palantir"
+        },
+        {
+          "value": "INTC",
+          "label": "INTC — Intel"
+        },
+        {
+          "value": "IBM",
+          "label": "IBM — IBM"
+        },
+        {
+          "value": "DIS",
+          "label": "DIS — Disney"
+        },
+        {
+          "value": "NKE",
+          "label": "NKE — Nike"
+        },
+        {
+          "value": "UBER",
+          "label": "UBER — Uber"
+        },
+        {
+          "value": "NVO",
+          "label": "NVO — Novo Nordisk"
+        },
+        {
+          "value": "AZN",
+          "label": "AZN — AstraZeneca"
+        },
+        {
+          "value": "SHEL",
+          "label": "SHEL — Shell"
+        },
+        {
+          "value": "TM",
+          "label": "TM — Toyota"
+        },
+        {
+          "value": "SONY",
+          "label": "SONY — Sony"
+        },
+        {
+          "value": "BABA",
+          "label": "BABA — Alibaba"
+        },
+        {
+          "value": "TCEHY",
+          "label": "TCEHY — Tencent"
+        },
+        {
+          "value": "005930.KS",
+          "label": "005930.KS — Samsung Electronics (Seoul)"
+        },
+        {
+          "value": "2222.SR",
+          "label": "2222.SR — Saudi Aramco (Riyadh)"
+        },
+        {
+          "value": "MC.PA",
+          "label": "MC.PA — LVMH (Paris)"
+        }
+      ],
+      "default": "MSFT"
+    },
+    {
+      "key": "Stocks.Stock3",
+      "group": "Stocks",
+      "name": "Акция 3",
+      "type": "enum",
+      "options": [
+        {
+          "value": "^GSPC",
+          "label": "S&P 500 — индекс"
+        },
+        {
+          "value": "AAPL",
+          "label": "AAPL — Apple"
+        },
+        {
+          "value": "MSFT",
+          "label": "MSFT — Microsoft"
+        },
+        {
+          "value": "NVDA",
+          "label": "NVDA — NVIDIA"
+        },
+        {
+          "value": "GOOGL",
+          "label": "GOOGL — Alphabet (Google)"
+        },
+        {
+          "value": "AMZN",
+          "label": "AMZN — Amazon"
+        },
+        {
+          "value": "META",
+          "label": "META — Meta Platforms"
+        },
+        {
+          "value": "TSLA",
+          "label": "TSLA — Tesla"
+        },
+        {
+          "value": "SPCX",
+          "label": "SPCX — SpaceX"
+        },
+        {
+          "value": "BRK-B",
+          "label": "BRK-B — Berkshire Hathaway"
+        },
+        {
+          "value": "AVGO",
+          "label": "AVGO — Broadcom"
+        },
+        {
+          "value": "TSM",
+          "label": "TSM — TSMC"
+        },
+        {
+          "value": "LLY",
+          "label": "LLY — Eli Lilly"
+        },
+        {
+          "value": "JPM",
+          "label": "JPM — JPMorgan Chase"
+        },
+        {
+          "value": "V",
+          "label": "V — Visa"
+        },
+        {
+          "value": "MA",
+          "label": "MA — Mastercard"
+        },
+        {
+          "value": "WMT",
+          "label": "WMT — Walmart"
+        },
+        {
+          "value": "ORCL",
+          "label": "ORCL — Oracle"
+        },
+        {
+          "value": "XOM",
+          "label": "XOM — Exxon Mobil"
+        },
+        {
+          "value": "UNH",
+          "label": "UNH — UnitedHealth"
+        },
+        {
+          "value": "NFLX",
+          "label": "NFLX — Netflix"
+        },
+        {
+          "value": "COST",
+          "label": "COST — Costco"
+        },
+        {
+          "value": "JNJ",
+          "label": "JNJ — Johnson & Johnson"
+        },
+        {
+          "value": "PG",
+          "label": "PG — Procter & Gamble"
+        },
+        {
+          "value": "HD",
+          "label": "HD — Home Depot"
+        },
+        {
+          "value": "ABBV",
+          "label": "ABBV — AbbVie"
+        },
+        {
+          "value": "BAC",
+          "label": "BAC — Bank of America"
+        },
+        {
+          "value": "KO",
+          "label": "KO — Coca-Cola"
+        },
+        {
+          "value": "PEP",
+          "label": "PEP — PepsiCo"
+        },
+        {
+          "value": "MCD",
+          "label": "MCD — McDonald's"
+        },
+        {
+          "value": "CVX",
+          "label": "CVX — Chevron"
+        },
+        {
+          "value": "AMD",
+          "label": "AMD — AMD"
+        },
+        {
+          "value": "ASML",
+          "label": "ASML — ASML"
+        },
+        {
+          "value": "SAP",
+          "label": "SAP — SAP"
+        },
+        {
+          "value": "CRM",
+          "label": "CRM — Salesforce"
+        },
+        {
+          "value": "ADBE",
+          "label": "ADBE — Adobe"
+        },
+        {
+          "value": "PLTR",
+          "label": "PLTR — Palantir"
+        },
+        {
+          "value": "INTC",
+          "label": "INTC — Intel"
+        },
+        {
+          "value": "IBM",
+          "label": "IBM — IBM"
+        },
+        {
+          "value": "DIS",
+          "label": "DIS — Disney"
+        },
+        {
+          "value": "NKE",
+          "label": "NKE — Nike"
+        },
+        {
+          "value": "UBER",
+          "label": "UBER — Uber"
+        },
+        {
+          "value": "NVO",
+          "label": "NVO — Novo Nordisk"
+        },
+        {
+          "value": "AZN",
+          "label": "AZN — AstraZeneca"
+        },
+        {
+          "value": "SHEL",
+          "label": "SHEL — Shell"
+        },
+        {
+          "value": "TM",
+          "label": "TM — Toyota"
+        },
+        {
+          "value": "SONY",
+          "label": "SONY — Sony"
+        },
+        {
+          "value": "BABA",
+          "label": "BABA — Alibaba"
+        },
+        {
+          "value": "TCEHY",
+          "label": "TCEHY — Tencent"
+        },
+        {
+          "value": "005930.KS",
+          "label": "005930.KS — Samsung Electronics (Seoul)"
+        },
+        {
+          "value": "2222.SR",
+          "label": "2222.SR — Saudi Aramco (Riyadh)"
+        },
+        {
+          "value": "MC.PA",
+          "label": "MC.PA — LVMH (Paris)"
+        }
+      ],
+      "default": "NVDA"
+    },
+    {
+      "key": "Stocks.Stock4",
+      "group": "Stocks",
+      "name": "Акция 4",
+      "type": "enum",
+      "options": [
+        {
+          "value": "^GSPC",
+          "label": "S&P 500 — индекс"
+        },
+        {
+          "value": "AAPL",
+          "label": "AAPL — Apple"
+        },
+        {
+          "value": "MSFT",
+          "label": "MSFT — Microsoft"
+        },
+        {
+          "value": "NVDA",
+          "label": "NVDA — NVIDIA"
+        },
+        {
+          "value": "GOOGL",
+          "label": "GOOGL — Alphabet (Google)"
+        },
+        {
+          "value": "AMZN",
+          "label": "AMZN — Amazon"
+        },
+        {
+          "value": "META",
+          "label": "META — Meta Platforms"
+        },
+        {
+          "value": "TSLA",
+          "label": "TSLA — Tesla"
+        },
+        {
+          "value": "SPCX",
+          "label": "SPCX — SpaceX"
+        },
+        {
+          "value": "BRK-B",
+          "label": "BRK-B — Berkshire Hathaway"
+        },
+        {
+          "value": "AVGO",
+          "label": "AVGO — Broadcom"
+        },
+        {
+          "value": "TSM",
+          "label": "TSM — TSMC"
+        },
+        {
+          "value": "LLY",
+          "label": "LLY — Eli Lilly"
+        },
+        {
+          "value": "JPM",
+          "label": "JPM — JPMorgan Chase"
+        },
+        {
+          "value": "V",
+          "label": "V — Visa"
+        },
+        {
+          "value": "MA",
+          "label": "MA — Mastercard"
+        },
+        {
+          "value": "WMT",
+          "label": "WMT — Walmart"
+        },
+        {
+          "value": "ORCL",
+          "label": "ORCL — Oracle"
+        },
+        {
+          "value": "XOM",
+          "label": "XOM — Exxon Mobil"
+        },
+        {
+          "value": "UNH",
+          "label": "UNH — UnitedHealth"
+        },
+        {
+          "value": "NFLX",
+          "label": "NFLX — Netflix"
+        },
+        {
+          "value": "COST",
+          "label": "COST — Costco"
+        },
+        {
+          "value": "JNJ",
+          "label": "JNJ — Johnson & Johnson"
+        },
+        {
+          "value": "PG",
+          "label": "PG — Procter & Gamble"
+        },
+        {
+          "value": "HD",
+          "label": "HD — Home Depot"
+        },
+        {
+          "value": "ABBV",
+          "label": "ABBV — AbbVie"
+        },
+        {
+          "value": "BAC",
+          "label": "BAC — Bank of America"
+        },
+        {
+          "value": "KO",
+          "label": "KO — Coca-Cola"
+        },
+        {
+          "value": "PEP",
+          "label": "PEP — PepsiCo"
+        },
+        {
+          "value": "MCD",
+          "label": "MCD — McDonald's"
+        },
+        {
+          "value": "CVX",
+          "label": "CVX — Chevron"
+        },
+        {
+          "value": "AMD",
+          "label": "AMD — AMD"
+        },
+        {
+          "value": "ASML",
+          "label": "ASML — ASML"
+        },
+        {
+          "value": "SAP",
+          "label": "SAP — SAP"
+        },
+        {
+          "value": "CRM",
+          "label": "CRM — Salesforce"
+        },
+        {
+          "value": "ADBE",
+          "label": "ADBE — Adobe"
+        },
+        {
+          "value": "PLTR",
+          "label": "PLTR — Palantir"
+        },
+        {
+          "value": "INTC",
+          "label": "INTC — Intel"
+        },
+        {
+          "value": "IBM",
+          "label": "IBM — IBM"
+        },
+        {
+          "value": "DIS",
+          "label": "DIS — Disney"
+        },
+        {
+          "value": "NKE",
+          "label": "NKE — Nike"
+        },
+        {
+          "value": "UBER",
+          "label": "UBER — Uber"
+        },
+        {
+          "value": "NVO",
+          "label": "NVO — Novo Nordisk"
+        },
+        {
+          "value": "AZN",
+          "label": "AZN — AstraZeneca"
+        },
+        {
+          "value": "SHEL",
+          "label": "SHEL — Shell"
+        },
+        {
+          "value": "TM",
+          "label": "TM — Toyota"
+        },
+        {
+          "value": "SONY",
+          "label": "SONY — Sony"
+        },
+        {
+          "value": "BABA",
+          "label": "BABA — Alibaba"
+        },
+        {
+          "value": "TCEHY",
+          "label": "TCEHY — Tencent"
+        },
+        {
+          "value": "005930.KS",
+          "label": "005930.KS — Samsung Electronics (Seoul)"
+        },
+        {
+          "value": "2222.SR",
+          "label": "2222.SR — Saudi Aramco (Riyadh)"
+        },
+        {
+          "value": "MC.PA",
+          "label": "MC.PA — LVMH (Paris)"
+        }
+      ],
+      "default": "GOOGL"
+    },
+    {
+      "key": "Stocks.Stock5",
+      "group": "Stocks",
+      "name": "Акция 5",
+      "type": "enum",
+      "options": [
+        {
+          "value": "^GSPC",
+          "label": "S&P 500 — индекс"
+        },
+        {
+          "value": "AAPL",
+          "label": "AAPL — Apple"
+        },
+        {
+          "value": "MSFT",
+          "label": "MSFT — Microsoft"
+        },
+        {
+          "value": "NVDA",
+          "label": "NVDA — NVIDIA"
+        },
+        {
+          "value": "GOOGL",
+          "label": "GOOGL — Alphabet (Google)"
+        },
+        {
+          "value": "AMZN",
+          "label": "AMZN — Amazon"
+        },
+        {
+          "value": "META",
+          "label": "META — Meta Platforms"
+        },
+        {
+          "value": "TSLA",
+          "label": "TSLA — Tesla"
+        },
+        {
+          "value": "SPCX",
+          "label": "SPCX — SpaceX"
+        },
+        {
+          "value": "BRK-B",
+          "label": "BRK-B — Berkshire Hathaway"
+        },
+        {
+          "value": "AVGO",
+          "label": "AVGO — Broadcom"
+        },
+        {
+          "value": "TSM",
+          "label": "TSM — TSMC"
+        },
+        {
+          "value": "LLY",
+          "label": "LLY — Eli Lilly"
+        },
+        {
+          "value": "JPM",
+          "label": "JPM — JPMorgan Chase"
+        },
+        {
+          "value": "V",
+          "label": "V — Visa"
+        },
+        {
+          "value": "MA",
+          "label": "MA — Mastercard"
+        },
+        {
+          "value": "WMT",
+          "label": "WMT — Walmart"
+        },
+        {
+          "value": "ORCL",
+          "label": "ORCL — Oracle"
+        },
+        {
+          "value": "XOM",
+          "label": "XOM — Exxon Mobil"
+        },
+        {
+          "value": "UNH",
+          "label": "UNH — UnitedHealth"
+        },
+        {
+          "value": "NFLX",
+          "label": "NFLX — Netflix"
+        },
+        {
+          "value": "COST",
+          "label": "COST — Costco"
+        },
+        {
+          "value": "JNJ",
+          "label": "JNJ — Johnson & Johnson"
+        },
+        {
+          "value": "PG",
+          "label": "PG — Procter & Gamble"
+        },
+        {
+          "value": "HD",
+          "label": "HD — Home Depot"
+        },
+        {
+          "value": "ABBV",
+          "label": "ABBV — AbbVie"
+        },
+        {
+          "value": "BAC",
+          "label": "BAC — Bank of America"
+        },
+        {
+          "value": "KO",
+          "label": "KO — Coca-Cola"
+        },
+        {
+          "value": "PEP",
+          "label": "PEP — PepsiCo"
+        },
+        {
+          "value": "MCD",
+          "label": "MCD — McDonald's"
+        },
+        {
+          "value": "CVX",
+          "label": "CVX — Chevron"
+        },
+        {
+          "value": "AMD",
+          "label": "AMD — AMD"
+        },
+        {
+          "value": "ASML",
+          "label": "ASML — ASML"
+        },
+        {
+          "value": "SAP",
+          "label": "SAP — SAP"
+        },
+        {
+          "value": "CRM",
+          "label": "CRM — Salesforce"
+        },
+        {
+          "value": "ADBE",
+          "label": "ADBE — Adobe"
+        },
+        {
+          "value": "PLTR",
+          "label": "PLTR — Palantir"
+        },
+        {
+          "value": "INTC",
+          "label": "INTC — Intel"
+        },
+        {
+          "value": "IBM",
+          "label": "IBM — IBM"
+        },
+        {
+          "value": "DIS",
+          "label": "DIS — Disney"
+        },
+        {
+          "value": "NKE",
+          "label": "NKE — Nike"
+        },
+        {
+          "value": "UBER",
+          "label": "UBER — Uber"
+        },
+        {
+          "value": "NVO",
+          "label": "NVO — Novo Nordisk"
+        },
+        {
+          "value": "AZN",
+          "label": "AZN — AstraZeneca"
+        },
+        {
+          "value": "SHEL",
+          "label": "SHEL — Shell"
+        },
+        {
+          "value": "TM",
+          "label": "TM — Toyota"
+        },
+        {
+          "value": "SONY",
+          "label": "SONY — Sony"
+        },
+        {
+          "value": "BABA",
+          "label": "BABA — Alibaba"
+        },
+        {
+          "value": "TCEHY",
+          "label": "TCEHY — Tencent"
+        },
+        {
+          "value": "005930.KS",
+          "label": "005930.KS — Samsung Electronics (Seoul)"
+        },
+        {
+          "value": "2222.SR",
+          "label": "2222.SR — Saudi Aramco (Riyadh)"
+        },
+        {
+          "value": "MC.PA",
+          "label": "MC.PA — LVMH (Paris)"
+        }
+      ],
+      "default": "AMZN"
+    },
+    {
+      "key": "Stocks.Stock6",
+      "group": "Stocks",
+      "name": "Акция 6",
+      "type": "enum",
+      "options": [
+        {
+          "value": "^GSPC",
+          "label": "S&P 500 — индекс"
+        },
+        {
+          "value": "AAPL",
+          "label": "AAPL — Apple"
+        },
+        {
+          "value": "MSFT",
+          "label": "MSFT — Microsoft"
+        },
+        {
+          "value": "NVDA",
+          "label": "NVDA — NVIDIA"
+        },
+        {
+          "value": "GOOGL",
+          "label": "GOOGL — Alphabet (Google)"
+        },
+        {
+          "value": "AMZN",
+          "label": "AMZN — Amazon"
+        },
+        {
+          "value": "META",
+          "label": "META — Meta Platforms"
+        },
+        {
+          "value": "TSLA",
+          "label": "TSLA — Tesla"
+        },
+        {
+          "value": "SPCX",
+          "label": "SPCX — SpaceX"
+        },
+        {
+          "value": "BRK-B",
+          "label": "BRK-B — Berkshire Hathaway"
+        },
+        {
+          "value": "AVGO",
+          "label": "AVGO — Broadcom"
+        },
+        {
+          "value": "TSM",
+          "label": "TSM — TSMC"
+        },
+        {
+          "value": "LLY",
+          "label": "LLY — Eli Lilly"
+        },
+        {
+          "value": "JPM",
+          "label": "JPM — JPMorgan Chase"
+        },
+        {
+          "value": "V",
+          "label": "V — Visa"
+        },
+        {
+          "value": "MA",
+          "label": "MA — Mastercard"
+        },
+        {
+          "value": "WMT",
+          "label": "WMT — Walmart"
+        },
+        {
+          "value": "ORCL",
+          "label": "ORCL — Oracle"
+        },
+        {
+          "value": "XOM",
+          "label": "XOM — Exxon Mobil"
+        },
+        {
+          "value": "UNH",
+          "label": "UNH — UnitedHealth"
+        },
+        {
+          "value": "NFLX",
+          "label": "NFLX — Netflix"
+        },
+        {
+          "value": "COST",
+          "label": "COST — Costco"
+        },
+        {
+          "value": "JNJ",
+          "label": "JNJ — Johnson & Johnson"
+        },
+        {
+          "value": "PG",
+          "label": "PG — Procter & Gamble"
+        },
+        {
+          "value": "HD",
+          "label": "HD — Home Depot"
+        },
+        {
+          "value": "ABBV",
+          "label": "ABBV — AbbVie"
+        },
+        {
+          "value": "BAC",
+          "label": "BAC — Bank of America"
+        },
+        {
+          "value": "KO",
+          "label": "KO — Coca-Cola"
+        },
+        {
+          "value": "PEP",
+          "label": "PEP — PepsiCo"
+        },
+        {
+          "value": "MCD",
+          "label": "MCD — McDonald's"
+        },
+        {
+          "value": "CVX",
+          "label": "CVX — Chevron"
+        },
+        {
+          "value": "AMD",
+          "label": "AMD — AMD"
+        },
+        {
+          "value": "ASML",
+          "label": "ASML — ASML"
+        },
+        {
+          "value": "SAP",
+          "label": "SAP — SAP"
+        },
+        {
+          "value": "CRM",
+          "label": "CRM — Salesforce"
+        },
+        {
+          "value": "ADBE",
+          "label": "ADBE — Adobe"
+        },
+        {
+          "value": "PLTR",
+          "label": "PLTR — Palantir"
+        },
+        {
+          "value": "INTC",
+          "label": "INTC — Intel"
+        },
+        {
+          "value": "IBM",
+          "label": "IBM — IBM"
+        },
+        {
+          "value": "DIS",
+          "label": "DIS — Disney"
+        },
+        {
+          "value": "NKE",
+          "label": "NKE — Nike"
+        },
+        {
+          "value": "UBER",
+          "label": "UBER — Uber"
+        },
+        {
+          "value": "NVO",
+          "label": "NVO — Novo Nordisk"
+        },
+        {
+          "value": "AZN",
+          "label": "AZN — AstraZeneca"
+        },
+        {
+          "value": "SHEL",
+          "label": "SHEL — Shell"
+        },
+        {
+          "value": "TM",
+          "label": "TM — Toyota"
+        },
+        {
+          "value": "SONY",
+          "label": "SONY — Sony"
+        },
+        {
+          "value": "BABA",
+          "label": "BABA — Alibaba"
+        },
+        {
+          "value": "TCEHY",
+          "label": "TCEHY — Tencent"
+        },
+        {
+          "value": "005930.KS",
+          "label": "005930.KS — Samsung Electronics (Seoul)"
+        },
+        {
+          "value": "2222.SR",
+          "label": "2222.SR — Saudi Aramco (Riyadh)"
+        },
+        {
+          "value": "MC.PA",
+          "label": "MC.PA — LVMH (Paris)"
+        }
+      ],
+      "default": "TSLA"
+    },
+    {
+      "key": "GameMode.SmartGameMode",
+      "group": "GameMode",
+      "name": "Умный игровой режим",
+      "description": "В полноэкранной игре остров полностью скрыт, а поверх игры ненадолго появляются только сообщения Telegram.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "GameMode.ShowOtherAlertsInGame",
+      "group": "GameMode",
+      "name": "Другие всплывашки поверх игр",
+      "description": "Громкость, яркость, индикаторы микрофона и камеры и прочие уведомления поверх игры (так было в оригинале).",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "GameMode.DetectD3DFullscreen",
+      "group": "GameMode",
+      "name": "Учитывать сигнал Windows \"запущена полноэкранная игра\"",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "GameMode.GameProcesses",
+      "group": "GameMode",
+      "name": "Дополнительные игры (exe через запятую)",
+      "description": "Например: cs2.exe, valorant.exe. Эти программы считаются играми, даже если открыты в окне.",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "GameMode.LightweightOverlay",
+      "group": "GameMode",
+      "name": "Облегчённый показ поверх игр",
+      "description": "Поверх игры остров рисуется без размытия фона и не чаще 60 кадров в секунду.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "QuietMode.ShowButton",
+      "group": "QuietMode",
+      "name": "Тумблер \"Не беспокоить\" в острове",
+      "description": "Тумблер с луной в правом верхнем углу первой вкладки развёрнутого острова (часы, а во время музыки - плеер).",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "QuietMode.HotkeyEnabled",
+      "group": "QuietMode",
+      "name": "Горячая клавиша \"Не беспокоить\"",
+      "description": "Включает и выключает режим. Когда режим включён, остров скрыт, и это единственный быстрый способ его выключить.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "QuietMode.HotkeyModifiers",
+      "group": "QuietMode",
+      "name": "Модификаторы горячей клавиши",
+      "type": "enum",
+      "options": [
+        {
+          "value": "ctrl_alt",
+          "label": "Ctrl + Alt"
+        },
+        {
+          "value": "ctrl_shift",
+          "label": "Ctrl + Shift"
+        },
+        {
+          "value": "alt_shift",
+          "label": "Alt + Shift"
+        },
+        {
+          "value": "win_alt",
+          "label": "Win + Alt"
+        },
+        {
+          "value": "ctrl_alt_shift",
+          "label": "Ctrl + Alt + Shift"
+        }
+      ],
+      "default": "ctrl_alt"
+    },
+    {
+      "key": "QuietMode.HotkeyKey",
+      "group": "QuietMode",
+      "name": "Клавиша (A-Z или 0-9)",
+      "type": "string",
+      "default": "N"
+    },
+    {
+      "key": "Shortcuts.HideShowHotkeyEnabled",
+      "group": "Shortcuts",
+      "name": "Enable hide/show hotkey",
+      "description": "Toggle the island's visibility instantly with a keyboard shortcut. The hotkey is the only way to bring a hidden island back, so leave this on unless you're comfortable re-enabling it from Windhawk settings.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Shortcuts.HideShowModifiers",
+      "group": "Shortcuts",
+      "name": "Hotkey modifiers",
+      "description": "Modifier keys combined with the letter/number key below.",
+      "type": "enum",
+      "options": [
+        {
+          "value": "ctrl_alt",
+          "label": "Ctrl + Alt"
+        },
+        {
+          "value": "ctrl_shift",
+          "label": "Ctrl + Shift"
+        },
+        {
+          "value": "alt_shift",
+          "label": "Alt + Shift"
+        },
+        {
+          "value": "win_alt",
+          "label": "Win + Alt"
+        },
+        {
+          "value": "ctrl_alt_shift",
+          "label": "Ctrl + Alt + Shift"
+        }
+      ],
+      "default": "ctrl_alt"
+    },
+    {
+      "key": "Shortcuts.HideShowKey",
+      "group": "Shortcuts",
+      "name": "Hotkey letter/number key",
+      "description": "A single A-Z or 0-9 key combined with the modifiers above. Falls back to \"D\" if left blank or invalid.",
+      "type": "string",
+      "default": "D"
+    }
+  ]
+}
