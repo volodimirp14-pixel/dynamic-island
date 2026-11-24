@@ -24,6 +24,7 @@
 #include "common/Log.h"
 #include "common/Paths.h"
 #include "common/Resources.h"
+#include "common/Edition.h"
 #include "common/Security.h"
 #include "common/Settings.h"
 #include "common/Utf.h"
@@ -103,6 +104,7 @@ void HandleMessage(const json& m) {
     if (type == "init") {
         json init = {{"type", "init"},
                      {"version", di::WideToUtf8(di::kAppVersion)},
+                     {"edition", di::kEditionIdA},
                      {"schema", json::parse(di::settings::SchemaText())},
                      {"values", json::parse(di::settings::ValuesJson())},
                      {"settingsPath", di::WideToUtf8(di::settings::FilePath())},

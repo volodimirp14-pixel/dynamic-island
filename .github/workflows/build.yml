@@ -8,18 +8,26 @@ on:
 jobs:
   windows:
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - edition: Pro
+            pro: "ON"
+          - edition: Trial
+            pro: "OFF"
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure
-        run: cmake -S . -B build -A x64
+      - name: Configure (${{ matrix.edition }})
+        run: cmake -S . -B build -A x64 -DDI_PRO=${{ matrix.pro }}
 
-      - name: Build
+      - name: Build (${{ matrix.edition }})
         run: cmake --build build --config Release -- /m
 
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: DynamicIsland-${{ github.sha }}
+          name: DynamicIsland-${{ matrix.edition }}-${{ github.sha }}
           path: build/Release/*.exe
           if-no-files-found: error

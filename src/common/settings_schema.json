@@ -487,7 +487,10 @@
           "label": "Свои цвета (поля ниже)"
         }
       ],
-      "default": "obsidian"
+      "default": "obsidian",
+      "proOptions": [
+        "custom"
+      ]
     },
     {
       "key": "Themes.PillOpacity",
@@ -528,7 +531,11 @@
           "label": "Liquid Glass"
         }
       ],
-      "default": "none"
+      "default": "none",
+      "proOptions": [
+        "acrylic",
+        "liquidglass"
+      ]
     },
     {
       "key": "Themes.LiquidGlassStyle",
@@ -546,7 +553,8 @@
           "label": "Прозрачное (без размытия)"
         }
       ],
-      "default": "tinted"
+      "default": "tinted",
+      "pro": true
     },
     {
       "key": "Themes.LiquidGlassClarity",
@@ -554,7 +562,8 @@
       "name": "Liquid Glass — прозрачность стекла",
       "description": "0 - 100. Чем больше, тем прозрачнее стекло и тем сильнее видно фон. Если на светлых обоях плохо читается текст, уменьшите.",
       "type": "int",
-      "default": 60
+      "default": 60,
+      "pro": true
     },
     {
       "key": "Themes.LiquidGlassShine",
@@ -562,7 +571,8 @@
       "name": "Liquid Glass — блики и края",
       "description": "0 - 200. Сила бликов, светлой кромки и толщины стекла по краям.",
       "type": "int",
-      "default": 100
+      "default": 100,
+      "pro": true
     },
     {
       "key": "Themes.BackdropFillOpacity",
@@ -584,7 +594,8 @@
       "group": "Themes",
       "name": "Объём (затенение и подсветка акцентом)",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Themes.DropShadow",
@@ -599,7 +610,8 @@
       "name": "Сила подсветки акцентом (0–200)",
       "description": "Цветное свечение сверху острова, по умолчанию берётся из обложки.",
       "type": "int",
-      "default": 100
+      "default": 100,
+      "pro": true
     },
     {
       "key": "Themes.TextScale",
@@ -628,7 +640,8 @@
         }
       ],
       "default": "auto",
-      "description": "«Авто» — цвет берётся из обложки трека или видео, без музыки — выбранный ниже. «Всегда один цвет» — только выбранный цвет."
+      "description": "«Авто» — цвет берётся из обложки трека или видео, без музыки — выбранный ниже. «Всегда один цвет» — только выбранный цвет.",
+      "pro": true
     },
     {
       "key": "Themes.AccentPreset",
@@ -692,7 +705,8 @@
           "value": "custom",
           "label": "Свой цвет (поле ниже)"
         }
-      ]
+      ],
+      "pro": true
     },
     {
       "key": "Themes.CustomAccentHex",
@@ -700,7 +714,8 @@
       "name": "Свой цвет акцента",
       "description": "Используется, если в «Цвет акцента» выбран «Свой цвет». Например #0A84FF.",
       "type": "string",
-      "default": "#4cc9f0"
+      "default": "#4cc9f0",
+      "pro": true
     },
     {
       "key": "Themes.CalendarAccent",
@@ -717,14 +732,16 @@
           "label": "Как в Windows"
         }
       ],
-      "default": "red"
+      "default": "red",
+      "pro": true
     },
     {
       "key": "Themes.ClockAccentGlow",
       "group": "Themes",
       "name": "Свечение за часами",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Themes.FontFamily",
@@ -732,7 +749,8 @@
       "name": "Шрифт",
       "description": "Название шрифта Windows, например Segoe UI Variable. Пусто — по умолчанию.",
       "type": "string",
-      "default": ""
+      "default": "",
+      "pro": true
     },
     {
       "key": "Themes.ContourBorderMode",
@@ -753,14 +771,16 @@
           "label": "Без рамки"
         }
       ],
-      "default": "default"
+      "default": "default",
+      "pro": true
     },
     {
       "key": "Themes.ContourBorderHex",
       "group": "Themes",
       "name": "Цвет рамки",
       "type": "string",
-      "default": "#1E1E22"
+      "default": "#1E1E22",
+      "pro": true
     },
     {
       "key": "Themes.PillBgColor",
@@ -768,7 +788,8 @@
       "name": "Цвет фона острова",
       "description": "Для темы «Свои цвета». Формат #RRGGBB или #RRGGBBAA (с прозрачностью).",
       "type": "string",
-      "default": "#08080A"
+      "default": "#08080A",
+      "pro": true
     },
     {
       "key": "Themes.TextPrimaryColor",
@@ -776,7 +797,8 @@
       "name": "Цвет основного текста",
       "description": "Для темы «Свои цвета».",
       "type": "string",
-      "default": "#FFFFFF"
+      "default": "#FFFFFF",
+      "pro": true
     },
     {
       "key": "Themes.TextSecondaryColor",
@@ -784,7 +806,8 @@
       "name": "Цвет второстепенного текста",
       "description": "Для темы «Свои цвета».",
       "type": "string",
-      "default": "#9B9BA5"
+      "default": "#9B9BA5",
+      "pro": true
     },
     {
       "key": "Indicators.PrivacyDots",
@@ -792,35 +815,40 @@
       "name": "Показывать индикаторы микрофона и камеры",
       "type": "bool",
       "default": true,
-      "description": "Точка справа на свёрнутом острове, когда любая программа использует микрофон (оранжевая), камеру (зелёная) или оба сразу (фиолетовая). Остров при этом остаётся по центру. Пока открыт музыкальный плеер, точка не показывается."
+      "description": "Точка справа на свёрнутом острове, когда любая программа использует микрофон (оранжевая), камеру (зелёная) или оба сразу (фиолетовая). Остров при этом остаётся по центру. Пока открыт музыкальный плеер, точка не показывается.",
+      "pro": true
     },
     {
       "key": "Indicators.PrivacyDotsMic",
       "group": "Indicators",
       "name": "Индикатор микрофона (оранжевая точка)",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Indicators.PrivacyDotsMicHex",
       "group": "Indicators",
       "name": "Цвет индикатора микрофона",
       "type": "string",
-      "default": "#FF9500"
+      "default": "#FF9500",
+      "pro": true
     },
     {
       "key": "Indicators.PrivacyDotsCam",
       "group": "Indicators",
       "name": "Индикатор камеры (зелёная точка)",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Indicators.PrivacyDotsCamHex",
       "group": "Indicators",
       "name": "Цвет индикатора камеры",
       "type": "string",
-      "default": "#34C759"
+      "default": "#34C759",
+      "pro": true
     },
     {
       "key": "Indicators.PrivacyDotsBothHex",
@@ -828,7 +856,8 @@
       "name": "Цвет, когда работают и микрофон, и камера",
       "description": "Одна точка вместо двух. По умолчанию фиолетовая.",
       "type": "string",
-      "default": "#BF5AF2"
+      "default": "#BF5AF2",
+      "pro": true
     },
     {
       "key": "Modules.Media",
@@ -878,14 +907,16 @@
       "group": "Modules",
       "name": "Окно при подключении и отключении Bluetooth",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Modules.BluetoothShowBattery",
       "group": "Modules",
       "name": "Заряд в окне подключения Bluetooth",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Modules.BluetoothDashboard",
@@ -893,7 +924,8 @@
       "name": "Bluetooth-устройства и заряд в развёрнутом острове",
       "description": "Слева сверху на вкладке часов и на вкладке плеера: значок каждого подключённого устройства (наушники, геймпад, мышь…) и его заряд. Значок пропадает, когда устройство отключается. Заряд обновляется раз в минуту.",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Modules.SonyPadBattery",
@@ -901,7 +933,8 @@
       "name": "Заряд геймпадов PlayStation (DualSense, DualShock 4)",
       "description": "Windows не сообщает заряд этих геймпадов, он читается из самого геймпада. По Bluetooth для этого геймпад переключается в расширенный режим — так же делает Steam. Если какая-то старая игра перестанет видеть геймпад, выключите и переподключите его.",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Modules.Progress",
@@ -909,7 +942,8 @@
       "name": "Кольцо прогресса",
       "description": "Включается командой DynamicIsland.exe --progress N.",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Modules.TimerModule",
@@ -917,14 +951,16 @@
       "name": "Таймер фокусировки",
       "description": "Запускается кнопками на Главной странице Launcher.",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Modules.HardwareMonitorModule",
       "group": "Modules",
       "name": "Вкладка «Монитор железа»",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Modules.GameOverlay",
@@ -932,21 +968,24 @@
       "name": "Игровой оверлей",
       "description": "Вместо часов и свёрнутого плеера — FPS, загрузка процессора и памяти. При наведении открывается полный плеер.",
       "type": "bool",
-      "default": false
+      "default": false,
+      "pro": true
     },
     {
       "key": "Modules.ShowMetricText",
       "group": "Modules",
       "name": "Подписи у показателей",
       "type": "bool",
-      "default": false
+      "default": false,
+      "pro": true
     },
     {
       "key": "Modules.Weather",
       "group": "Modules",
       "name": "Погода",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Modules.WeatherCity",
@@ -954,14 +993,16 @@
       "name": "Город для погоды",
       "description": "Например Amsterdam. Пусто — определяется автоматически по IP.",
       "type": "string",
-      "default": ""
+      "default": "",
+      "pro": true
     },
     {
       "key": "Modules.WeatherFahrenheit",
       "group": "Modules",
       "name": "Градусы Фаренгейта",
       "type": "bool",
-      "default": false
+      "default": false,
+      "pro": true
     },
     {
       "key": "Modules.Language",
@@ -1101,42 +1142,48 @@
       "group": "Modules",
       "name": "Оверлей: FPS",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Modules.GameOverlayShowCpu",
       "group": "Modules",
       "name": "Оверлей: процессор",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Modules.GameOverlayShowGpu",
       "group": "Modules",
       "name": "Оверлей: видеокарта",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Modules.GameOverlayShowRam",
       "group": "Modules",
       "name": "Оверлей: память",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Modules.GameOverlayShowDisk",
       "group": "Modules",
       "name": "Оверлей: диск",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Modules.GameOverlayCompact",
       "group": "Modules",
       "name": "Оверлей: компактный размер",
       "type": "bool",
-      "default": false
+      "default": false,
+      "pro": true
     },
     {
       "key": "Telegram.Enabled",
@@ -1144,7 +1191,8 @@
       "name": "Сообщения Telegram в острове",
       "description": "Показывать входящие сообщения Telegram Desktop в Dynamic Island. Нужно разрешение Windows \"Разрешить приложениям доступ к уведомлениям\" и включённые уведомления Windows в самом Telegram.",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Telegram.SuppressWindowsBanner",
@@ -1152,21 +1200,24 @@
       "name": "Не показывать баннер Windows для Telegram",
       "description": "Мод выключает для Telegram параметр Windows \"Показывать баннеры уведомлений\", чтобы сообщение показывал только остров. Исходное значение сохраняется и возвращается, когда этот пункт или мод выключают.",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Telegram.DisplaySeconds",
       "group": "Telegram",
       "name": "Время показа сообщения (сек.)",
       "type": "int",
-      "default": 6
+      "default": 6,
+      "pro": true
     },
     {
       "key": "Telegram.MaxMessages",
       "group": "Telegram",
       "name": "Сколько последних сообщений показывать сразу (1-5)",
       "type": "int",
-      "default": 3
+      "default": 3,
+      "pro": true
     },
     {
       "key": "Telegram.ShowMessageText",
@@ -1174,7 +1225,8 @@
       "name": "Показывать текст сообщения",
       "description": "Если выключить, вместо текста будет написано \"Новое сообщение\".",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Telegram.RespectWindowsDnD",
@@ -1182,14 +1234,16 @@
       "name": "Учитывать \"Не беспокоить\" Windows (вне игр)",
       "description": "Пока включён системный режим \"Не беспокоить\", сообщения не показываются. Во время игр не учитывается, потому что Windows включает его в играх автоматически.",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Telegram.ClearFromNotificationCenter",
       "group": "Telegram",
       "name": "Удалять сообщение из центра уведомлений после показа",
       "type": "bool",
-      "default": false
+      "default": false,
+      "pro": true
     },
     {
       "key": "Telegram.DebugLog",
@@ -1197,7 +1251,8 @@
       "name": "Диагностический лог",
       "description": "Пишет в лог Windhawk структуру уведомлений Telegram (включая текст сообщений). Включайте только на время проверки.",
       "type": "bool",
-      "default": false
+      "default": false,
+      "pro": true
     },
     {
       "key": "Discord.Enabled",
@@ -1205,14 +1260,16 @@
       "name": "Сообщения Discord в острове",
       "description": "Такая же карточка, как у Telegram - кто написал, текст, канал и сервер. Время показа, число сообщений и показ текста берутся из настроек Telegram.",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Discord.ShowOverGames",
       "group": "Discord",
       "name": "Показывать сообщения Discord поверх игр",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Discord.SuppressWindowsBanner",
@@ -1220,7 +1277,8 @@
       "name": "Не показывать баннер Windows для Discord",
       "description": "Сообщение Discord появляется только в острове, а в Windows тихо уходит в центр уведомлений. Исходная настройка Windows возвращается, когда этот пункт или мод выключают.",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Stocks.Enabled",
@@ -1228,7 +1286,8 @@
       "name": "Вкладка «Акции»",
       "description": "Отдельная вкладка развёрнутого острова с 6 графиками. Данные берутся с Yahoo Finance (без аккаунта и ключей, отправляются только тикеры). Могут отставать до 15-20 минут, у некоторых бирж больше.",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "Stocks.Range",
@@ -1257,7 +1316,8 @@
           "label": "1 год"
         }
       ],
-      "default": "1d"
+      "default": "1d",
+      "pro": true
     },
     {
       "key": "Stocks.RefreshMinutes",
@@ -1265,7 +1325,8 @@
       "name": "Обновлять каждые (мин.)",
       "description": "1 - 60. Обновление идёт, пока вкладку смотрели последние 10 минут; иначе запросы не отправляются.",
       "type": "int",
-      "default": 2
+      "default": 2,
+      "pro": true
     },
     {
       "key": "Stocks.Stock1",
@@ -1482,7 +1543,8 @@
           "label": "MC.PA — LVMH (Paris)"
         }
       ],
-      "default": "AAPL"
+      "default": "AAPL",
+      "pro": true
     },
     {
       "key": "Stocks.Stock2",
@@ -1699,7 +1761,8 @@
           "label": "MC.PA — LVMH (Paris)"
         }
       ],
-      "default": "MSFT"
+      "default": "MSFT",
+      "pro": true
     },
     {
       "key": "Stocks.Stock3",
@@ -1916,7 +1979,8 @@
           "label": "MC.PA — LVMH (Paris)"
         }
       ],
-      "default": "NVDA"
+      "default": "NVDA",
+      "pro": true
     },
     {
       "key": "Stocks.Stock4",
@@ -2133,7 +2197,8 @@
           "label": "MC.PA — LVMH (Paris)"
         }
       ],
-      "default": "GOOGL"
+      "default": "GOOGL",
+      "pro": true
     },
     {
       "key": "Stocks.Stock5",
@@ -2350,7 +2415,8 @@
           "label": "MC.PA — LVMH (Paris)"
         }
       ],
-      "default": "AMZN"
+      "default": "AMZN",
+      "pro": true
     },
     {
       "key": "Stocks.Stock6",
@@ -2567,7 +2633,8 @@
           "label": "MC.PA — LVMH (Paris)"
         }
       ],
-      "default": "TSLA"
+      "default": "TSLA",
+      "pro": true
     },
     {
       "key": "GameMode.SmartGameMode",
@@ -2575,7 +2642,8 @@
       "name": "Умный игровой режим",
       "description": "В полноэкранной игре остров полностью скрыт, а поверх игры ненадолго появляются только сообщения Telegram.",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "GameMode.ShowOtherAlertsInGame",
@@ -2583,14 +2651,16 @@
       "name": "Другие всплывашки поверх игр",
       "description": "Громкость, яркость, индикаторы микрофона и камеры и прочие уведомления поверх игры (так было в оригинале).",
       "type": "bool",
-      "default": false
+      "default": false,
+      "pro": true
     },
     {
       "key": "GameMode.DetectD3DFullscreen",
       "group": "GameMode",
       "name": "Учитывать сигнал Windows \"запущена полноэкранная игра\"",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "GameMode.GameProcesses",
@@ -2598,7 +2668,8 @@
       "name": "Дополнительные игры (exe через запятую)",
       "description": "Например: cs2.exe, valorant.exe. Эти программы считаются играми, даже если открыты в окне.",
       "type": "string",
-      "default": ""
+      "default": "",
+      "pro": true
     },
     {
       "key": "GameMode.LightweightOverlay",
@@ -2606,7 +2677,8 @@
       "name": "Облегчённый показ поверх игр",
       "description": "Поверх игры остров рисуется без размытия фона и не чаще 60 кадров в секунду.",
       "type": "bool",
-      "default": true
+      "default": true,
+      "pro": true
     },
     {
       "key": "QuietMode.ShowButton",

@@ -17,6 +17,17 @@ add_compile_options(/guard:cf /sdl)
 add_link_options(/guard:cf /CETCOMPAT /DYNAMICBASE /HIGHENTROPYVA /NXCOMPAT /DEPENDENTLOADFLAG:0x800)
 include_directories(src third_party)
 
+# Standalone 0.11: edition. Pro = everything; OFF builds the trial (base features
+# only, see src/common/Edition.h and "pro" in settings_schema.json).
+option(DI_PRO "Build the Pro edition (OFF = trial)" ON)
+if(DI_PRO)
+  add_compile_definitions(DI_EDITION_PRO=1)
+  message(STATUS "Dynamic Island edition: Pro")
+else()
+  add_compile_definitions(DI_EDITION_PRO=0)
+  message(STATUS "Dynamic Island edition: Trial")
+endif()
+
 # ── Shared by both programs: paths, log, settings, island commands ──────────
 add_library(di_common STATIC
   src/common/IpcClient.cpp

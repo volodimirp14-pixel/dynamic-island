@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dynamic Island для Windows — Pro</title>
+<style>
+:root { --bg: #f3f3f5; --card: #fff; --line: rgba(0,0,0,.08); --text: #1d1d1f; --muted: #6e6e73; --accent: #0a84ff; --ok: #30d158; }
+@media (prefers-color-scheme: dark) { :root { --bg: #1c1c1e; --card: #242426; --line: rgba(255,255,255,.08); --text: #f2f2f5; --muted: #9a9aa2; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; }
+.wrap { max-width: 920px; margin: 0 auto; padding: 48px 24px 64px; }
+.top { display: flex; align-items: center; gap: 16px; margin-bottom: 36px; }
+.pill { width: 92px; height: 32px; border-radius: 17px; background: #000; box-shadow: 0 6px 18px rgba(0,0,0,.3); position: relative; flex: none; }
+.pill::after { content: ""; position: absolute; right: 12px; top: 11px; width: 10px; height: 10px; border-radius: 50%; background: var(--ok); }
+h1 { margin: 0; font-size: 30px; letter-spacing: -.01em; }
+.sub { color: var(--muted); margin: 2px 0 0; }
+nav { display: flex; gap: 6px; margin-bottom: 28px; border-bottom: 1px solid var(--line); }
+nav a { padding: 10px 14px; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; font-weight: 500; }
+nav a.on { color: var(--text); border-color: var(--accent); }
+.plans { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 32px; }
+.plan { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px; }
+.plan.best { border: 2px solid var(--accent); }
+.plan h2 { margin: 0; font-size: 22px; }
+.plan .price { color: var(--muted); margin: 2px 0 18px; }
+.btn { display: inline-block; border: none; border-radius: 10px; padding: 10px 22px; font: inherit; font-weight: 600; background: var(--accent); color: #fff; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); text-decoration: none; }
+.note { color: var(--muted); font-size: 13px; margin-top: 10px; }
+table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 16px; overflow: hidden; border: 1px solid var(--line); }
+td, th { padding: 12px 18px; border-top: 1px solid var(--line); text-align: left; font-weight: 400; }
+th { color: var(--muted); font-size: 13px; border-top: none; }
+.c { text-align: center; width: 120px; }
+.yes { color: var(--ok); font-weight: 700; } .no { color: var(--muted); }
+footer { color: var(--muted); font-size: 13px; margin-top: 32px; }
+@media (max-width: 640px) { .plans { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><div class="pill"></div><div><h1>Dynamic Island для Windows</h1><p class="sub">Остров в стиле iPhone вверху экрана: музыка, уведомления, игры, Bluetooth.</p></div></div>
+  <nav><a href="https://github.com/volodimirp14-pixel/dynamic-island">Проект</a><a class="on" href="#pro">Pro</a></nav>
+
+  <section id="pro">
+    <div class="plans">
+      <div class="plan"><h2>Пробная</h2><div class="price">Бесплатно</div>
+        <a class="btn ghost" href="https://github.com/volodimirp14-pixel/dynamic-island/actions">Скачать (сборки GitHub Actions)</a></div>
+      <div class="plan best"><h2>Pro</h2><div class="price">Все функции</div>
+        <button class="btn" disabled>Купить Pro</button>
+        <p class="note">Покупка скоро станет доступна.</p></div>
+    </div>
+    <table>
+      <tr><th>Функция</th><th class="c">Пробная</th><th class="c">Pro</th></tr>
+      <tr><td>Часы, дата и календарь</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+      <tr><td>Музыкальный плеер с обложкой, спектром и перемоткой</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+      <tr><td>Громкость, яркость, батарея</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+      <tr><td>Темы, размер, положение, анимации, «Не беспокоить»</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+      <tr><td>Сообщения Telegram и Discord в острове</td><td class="c no">—</td><td class="c yes">✓</td></tr>
+      <tr><td>Bluetooth: подключение устройств и заряд наушников / геймпадов</td><td class="c no">—</td><td class="c yes">✓</td></tr>
+      <tr><td>Умный игровой режим, игровой оверлей FPS/CPU, монитор железа</td><td class="c no">—</td><td class="c yes">✓</td></tr>
+      <tr><td>Погода, акции, таймер фокусировки, кольцо прогресса</td><td class="c no">—</td><td class="c yes">✓</td></tr>
+      <tr><td>Индикаторы микрофона и камеры</td><td class="c no">—</td><td class="c yes">✓</td></tr>
+      <tr><td>Liquid Glass и акрил, цвет акцента, свои цвета и шрифт</td><td class="c no">—</td><td class="c yes">✓</td></tr>
+    </table>
+  </section>
+  <footer>Аккаунты Telegram и Discord программе не нужны: сообщения читаются из уведомлений Windows.</footer>
+</div>
+</body>
+</html>
