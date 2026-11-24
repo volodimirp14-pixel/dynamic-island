@@ -4,18 +4,23 @@
 <meta charset="utf-8">
 <title>Dynamic Island</title>
 <style>
+/* Registered so the accent can fade when the island's colour changes (new track). */
+@property --accent { syntax: '<color>'; inherits: true; initial-value: #4cc9f0; }
 :root {
   --bg: #1c1c1e; --side: #161618; --card: #242426; --card2: #2c2c2f; --line: rgba(255,255,255,.07);
   --text: #f2f2f5; --muted: #9a9aa2; --faint: #6c6c74; --accent: #0a84ff; --accent-soft: rgba(10,132,255,.16);
-  --ok: #30d158; --warn: #ff9f0a; --bad: #ff453a; --track: #3a3a3e; --shadow: 0 1px 2px rgba(0,0,0,.25);
+  --accent-text: var(--accent); --ok: #30d158; --warn: #ff9f0a; --bad: #ff453a; --track: #3a3a3e; --shadow: 0 1px 2px rgba(0,0,0,.25);
   color-scheme: dark;
 }
 @media (prefers-color-scheme: light) {
   :root { --bg: #f3f3f5; --side: #ebebee; --card: #ffffff; --card2: #f6f6f8; --line: rgba(0,0,0,.07);
     --text: #1d1d1f; --muted: #6e6e73; --faint: #a1a1a6; --accent: #0071e3; --accent-soft: rgba(0,113,227,.10);
-    --track: #d1d1d6; --shadow: 0 1px 2px rgba(0,0,0,.06); color-scheme: light; }
+    --track: #d1d1d6; --shadow: 0 1px 2px rgba(0,0,0,.06); color-scheme: light;
+    --accent-text: color-mix(in srgb, var(--accent) 62%, #000); }
 }
 * { box-sizing: border-box; }
+:root { transition: --accent .8s ease; }
+:root { --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent); }
 html, body { margin: 0; height: 100%; }
 body { font: 14px/1.4 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text);
   display: flex; overflow: hidden; user-select: none; -webkit-font-smoothing: antialiased; }
@@ -27,11 +32,11 @@ aside { width: 232px; flex: none; background: var(--side); display: flex; flex-d
 .pill { width: 42px; height: 16px; border-radius: 9px; background: #000; box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), 0 2px 8px rgba(0,0,0,.35); position: relative; }
 .pill::after { content: ""; position: absolute; right: 6px; top: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--ok); opacity: 0; transition: opacity .3s; }
 .pill.on::after { opacity: 1; }
-.brand b { display: block; font-size: 15px; font-weight: 600; }
+.brand b { display: block; font-size: 15px; font-weight: 600; color: var(--accent-text); }
 .brand small { color: var(--muted); font-size: 12px; }
 nav a { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: var(--muted); cursor: pointer; margin-bottom: 2px; font-weight: 500; transition: background .15s, color .15s; }
 nav a:hover { background: var(--line); color: var(--text); }
-nav a.active { background: var(--accent-soft); color: var(--text); }
+nav a.active { background: var(--accent-soft); color: var(--accent-text); }
 nav a.active svg { color: var(--accent); }
 nav svg { width: 18px; height: 18px; flex: none; }
 .side-foot { margin-top: auto; padding: 10px 12px 0; color: var(--faint); font-size: 12px; }
@@ -48,7 +53,7 @@ header h1 { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -.01em
 #content::-webkit-scrollbar { width: 10px; } #content::-webkit-scrollbar-thumb { background: var(--track); border-radius: 5px; border: 3px solid var(--bg); }
 
 section { margin-bottom: 26px; max-width: 880px; }
-section > h2 { font-size: 13px; font-weight: 600; color: var(--muted); margin: 0 0 8px 4px; text-transform: none; }
+section > h2 { font-size: 13px; font-weight: 600; color: var(--accent-text); margin: 0 0 8px 4px; text-transform: none; }
 .card { background: var(--card); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
 .row { display: flex; align-items: center; gap: 20px; padding: 13px 18px; min-height: 56px; border-top: 1px solid var(--line); transition: opacity .2s; }
 .row:first-child { border-top: none; }
@@ -82,7 +87,15 @@ select:focus, .num:focus, .txt:focus { border-color: var(--accent); }
 /* buttons */
 .btn { border: 1px solid var(--line); background: var(--card2); border-radius: 8px; padding: 7px 16px; cursor: pointer; font-weight: 500; transition: filter .15s, opacity .15s; }
 .btn:hover { filter: brightness(1.12); }
-.btn.primary { background: var(--accent); border-color: transparent; color: #fff; }
+.btn.primary { background: var(--accent); border-color: transparent; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.25); }
+/* colour palette (accent presets) */
+.palette { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; max-width: 420px; }
+.palette button { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; padding: 0; cursor: pointer; position: relative;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.2); transition: transform .15s; }
+.palette button:hover { transform: scale(1.12); }
+.palette button.on { border-color: var(--text); }
+.palette button.custom { background: conic-gradient(#ff453a, #ffd60a, #30d158, #4cc9f0, #bf5af2, #ff453a); }
+.palette button.on::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; background: rgba(255,255,255,.9); transform: scale(.45); }
 .btn.danger { color: var(--bad); }
 .btn:disabled { opacity: .45; pointer-events: none; }
 
@@ -177,7 +190,7 @@ const SUBSECTIONS = {
   Themes: [
     ['Тема', ['ThemePreset', 'PillOpacity', 'TintIntensity', 'TextScale', 'FontFamily']],
     ['Материал', ['BackdropMaterial', 'LiquidGlassStyle', 'LiquidGlassClarity', 'LiquidGlassShine', 'BackdropFillOpacity', 'BackdropTint', 'MaterialDepth', 'DropShadow']],
-    ['Акцент и рамка', ['AccentColorMode', 'CustomAccentHex', 'AccentBloom', 'CalendarAccent', 'ClockAccentGlow', 'ContourBorderMode', 'ContourBorderHex']],
+    ['Акцент и рамка', ['AccentColorMode', 'AccentPreset', 'CustomAccentHex', 'AccentBloom', 'CalendarAccent', 'ClockAccentGlow', 'ContourBorderMode', 'ContourBorderHex']],
     ['Свои цвета', ['PillBgColor', 'TextPrimaryColor', 'TextSecondaryColor']],
   ],
 };
@@ -190,7 +203,8 @@ const ACTIVE_IF = {
   'Themes.LiquidGlassShine': () => v('Themes.BackdropMaterial') === 'liquidglass',
   'Themes.BackdropFillOpacity': () => ['blur', 'acrylic'].includes(v('Themes.BackdropMaterial')),
   'Themes.BackdropTint': () => ['blur', 'acrylic'].includes(v('Themes.BackdropMaterial')),
-  'Themes.CustomAccentHex': () => v('Themes.AccentColorMode') === 'custom',
+  'Themes.AccentPreset': () => v('Themes.AccentColorMode') !== 'system',
+  'Themes.CustomAccentHex': () => v('Themes.AccentColorMode') !== 'system' && v('Themes.AccentPreset') === 'custom',
   'Themes.ContourBorderHex': () => v('Themes.ContourBorderMode') === 'default',
   'Themes.PillBgColor': () => v('Themes.ThemePreset') === 'custom',
   'Themes.TextPrimaryColor': () => v('Themes.ThemePreset') === 'custom',
@@ -225,9 +239,27 @@ function activeRule(key) {
   return null;
 }
 
-const state = { schema: null, byKey: {}, values: {}, running: false, autostart: false, version: '', page: 'home', problem: '', islandFound: true, busy: false };
+const state = { liveAccent: null, schema: null, byKey: {}, values: {}, running: false, autostart: false, version: '', page: 'home', problem: '', islandFound: true, busy: false };
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ── Accent ──
+// While the island runs, the Launcher wears the island's live accent (artwork
+// colour while media plays, the chosen preset otherwise). Stopped: the preset.
+function presetAccent() {
+  if (!state.schema) return null;
+  if (v('Themes.AccentColorMode') === 'system') return null;
+  const preset = state.byKey['Themes.AccentPreset'];
+  const opt = preset && preset.options.find((o) => o.value === v('Themes.AccentPreset'));
+  if (opt && opt.color) return opt.color;
+  const hex = v('Themes.CustomAccentHex');
+  return /^#[0-9a-f]{6}/i.test(hex || '') ? hex.slice(0, 7) : null;
+}
+function applyAccent() {
+  const c = state.liveAccent || presetAccent();
+  if (c) document.documentElement.style.setProperty('--accent', c);
+  else document.documentElement.style.removeProperty('--accent');
+}
 
 // ── Toast / confirm ──
 let toastTimer;
@@ -249,6 +281,9 @@ const isColor = (s) => /(Hex|Color)$/.test(s.key);
 function control(s) {
   const val = state.values[s.key];
   if (s.type === 'bool') return `<button class="toggle ${val ? 'on' : ''}" data-k="${s.key}" data-t="bool" aria-label="${esc(s.name)}"></button>`;
+  if (s.type === 'enum' && s.options.some((o) => o.color)) {
+    return `<div class="palette" data-k="${s.key}">${s.options.map((o) => `<button title="${esc(o.label)}" data-v="${esc(o.value)}" class="${o.value === val ? 'on' : ''} ${o.color ? '' : 'custom'}" style="${o.color ? `background:${o.color}` : ''}"></button>`).join('')}</div>`;
+  }
   if (s.type === 'enum') {
     const short = s.options.length <= 3 && s.options.every((o) => o.label.length <= 14);
     if (short) return `<div class="seg" data-k="${s.key}">${s.options.map((o) => `<button data-v="${esc(o.value)}" class="${o.value === val ? 'on' : ''}">${esc(o.label)}</button>`).join('')}</div>`;
@@ -299,7 +334,7 @@ function homeHtml() {
         ${run ? `<button class="btn" data-act="restart" ${state.busy ? 'disabled' : ''}>Перезапустить</button><button class="btn" data-act="stop" ${state.busy ? 'disabled' : ''}>Остановить</button>`
               : `<button class="btn primary" data-act="start" ${state.busy || !state.islandFound ? 'disabled' : ''}>Запустить</button>`}
       </div></div></div></section>`;
-  const quick = ['Telegram.Enabled', 'Discord.Enabled', 'GameMode.SmartGameMode', 'Stocks.Enabled', 'Themes.ThemePreset', 'Themes.BackdropMaterial']
+  const quick = ['Themes.AccentPreset', 'Telegram.Enabled', 'Discord.Enabled', 'GameMode.SmartGameMode', 'Stocks.Enabled', 'Themes.ThemePreset', 'Themes.BackdropMaterial']
     .map((k) => state.byKey[k]).filter(Boolean);
   html += sectionHtml('Быстрые настройки', quick);
   html += `<section><h2>Система</h2><div class="card"><div class="row"><div class="label"><b>Запускать вместе с Windows</b><span>Остров стартует при входе в систему, Launcher при этом не открывается.</span></div>
@@ -374,6 +409,8 @@ document.addEventListener('input', onInput);
 document.addEventListener('click', async (e) => {
   const tg = e.target.closest('.toggle[data-k]');
   if (tg) { const on = !tg.classList.contains('on'); tg.classList.toggle('on', on); state.values[tg.dataset.k] = on; refreshDimming(); save(tg.dataset.k, on); return; }
+  const pal = e.target.closest('.palette button');
+  if (pal) { const box = pal.parentElement; box.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === pal)); state.values[box.dataset.k] = pal.dataset.v; refreshDimming(); applyAccent(); save(box.dataset.k, pal.dataset.v); return; }
   const segBtn = e.target.closest('.seg button');
   if (segBtn) { const seg = segBtn.parentElement; seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === segBtn)); state.values[seg.dataset.k] = segBtn.dataset.v; refreshDimming(); save(seg.dataset.k, segBtn.dataset.v); return; }
   const nav = e.target.closest('nav a');
@@ -387,7 +424,7 @@ document.addEventListener('click', async (e) => {
   else if (a === 'kill') { if (await confirmBox('Завершить остров принудительно?', 'Используйте, только если обычная остановка не помогает. Баннеры Telegram/Discord вернутся при следующем обычном выходе.', 'Завершить')) { state.busy = true; send({ type: 'kill' }); } }
   else { state.busy = true; render(); send({ type: a }); }
 });
-document.addEventListener('change', (e) => { if (e.target.dataset.t === 'enum') { state.values[e.target.dataset.k] = e.target.value; refreshDimming(); } });
+document.addEventListener('change', (e) => { if (e.target.dataset.t === 'enum') { state.values[e.target.dataset.k] = e.target.value; refreshDimming(); applyAccent(); } });
 $('#q').addEventListener('input', render);
 
 // ── Messages from C++ ──
@@ -398,23 +435,25 @@ function onHostMessage(m) {
       state.schema = m.schema; state.values = m.values; state.version = m.version; state.problem = m.problem; state.settingsPath = m.settingsPath; state.islandFound = m.islandFound;
       state.byKey = Object.fromEntries(m.schema.settings.map((s) => [s.key, s]));
       $('#ver').textContent = 'версия ' + m.version;
+      applyAccent();
       $('#nav').innerHTML = PAGES.map((p) => `<a data-p="${p.id}">${ICONS[p.id]}<span>${p.title}</span></a>`).join('');
       render();
       break;
     case 'status': {
       const changed = m.running !== state.running || m.autostart !== state.autostart || state.busy;
       state.running = m.running; state.autostart = m.autostart; state.busy = false;
+      if (m.accent !== state.liveAccent) { state.liveAccent = m.accent; applyAccent(); }
       if (changed && !$('#q').value && ['home', 'system'].includes(state.page)) render(); else $('#brandPill').classList.toggle('on', state.running);
       break;
     }
     case 'saved':
-      state.values = m.values;
+      state.values = m.values; applyAccent();
       if (m.ok) { toast('Сохранено'); const r = document.querySelector(`[data-row="${CSS.escape(m.key)}"]`); if (r) { r.classList.remove('flash'); void r.offsetWidth; r.classList.add('flash'); } }
       else { toast('Не сохранено: недопустимое значение', true); render(); }
       refreshDimming();
       break;
     case 'reset':
-      state.values = m.values; render(); toast(m.ok ? 'Настройки сброшены' : 'Не удалось сбросить', !m.ok);
+      state.values = m.values; applyAccent(); render(); toast(m.ok ? 'Настройки сброшены' : 'Не удалось сбросить', !m.ok);
       break;
     case 'action':
       state.busy = false;
@@ -427,7 +466,7 @@ function onHostMessage(m) {
 if (host) {
   host.addEventListener('message', (e) => onHostMessage(e.data));
   send({ type: 'init' });
-  setInterval(() => send({ type: 'status' }), 1500);
+  setInterval(() => send({ type: 'status' }), 1000);
 } else if (window.__mock) {
   window.__mock(onHostMessage);  // design preview outside the app
 }

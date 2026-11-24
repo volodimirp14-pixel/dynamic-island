@@ -7,4 +7,7 @@ namespace di::ipc {
 bool IsIslandRunning();
 // Returns false when no island is running or it did not answer within 3 s.
 bool Send(const std::wstring& command);
+// The island's current accent colour as 0xRRGGBB, or -1 if it is not running / unknown.
+// Short timeout: safe to call from a UI thread.
+int QueryAccent();
 }  // namespace di::ipc

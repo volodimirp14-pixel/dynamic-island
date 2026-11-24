@@ -611,7 +611,7 @@
     {
       "key": "Themes.AccentColorMode",
       "group": "Themes",
-      "name": "Цвет акцента",
+      "name": "Режим цвета акцента",
       "type": "enum",
       "options": [
         {
@@ -624,16 +624,81 @@
         },
         {
           "value": "custom",
-          "label": "Свой цвет (ниже)"
+          "label": "Всегда один цвет"
         }
       ],
-      "default": "auto"
+      "default": "auto",
+      "description": "«Авто» — цвет берётся из обложки трека или видео, без музыки — выбранный ниже. «Всегда один цвет» — только выбранный цвет."
+    },
+    {
+      "key": "Themes.AccentPreset",
+      "group": "Themes",
+      "name": "Цвет акцента",
+      "description": "Цвет надписей и элементов острова и Launcher. В режиме «Авто, из обложки» он используется, пока ничего не играет; при музыке или видео цвет, как и раньше, берётся из обложки.",
+      "type": "enum",
+      "default": "teal",
+      "options": [
+        {
+          "value": "teal",
+          "label": "Бирюзовый (по умолчанию)",
+          "color": "#4CC9F0"
+        },
+        {
+          "value": "blue",
+          "label": "Синий",
+          "color": "#0A84FF"
+        },
+        {
+          "value": "violet",
+          "label": "Фиолетовый",
+          "color": "#BF5AF2"
+        },
+        {
+          "value": "pink",
+          "label": "Розовый",
+          "color": "#FF375F"
+        },
+        {
+          "value": "red",
+          "label": "Красный",
+          "color": "#FF453A"
+        },
+        {
+          "value": "orange",
+          "label": "Оранжевый",
+          "color": "#FF9F0A"
+        },
+        {
+          "value": "yellow",
+          "label": "Жёлтый",
+          "color": "#FFD60A"
+        },
+        {
+          "value": "green",
+          "label": "Зелёный",
+          "color": "#30D158"
+        },
+        {
+          "value": "mint",
+          "label": "Мятный",
+          "color": "#63E6BE"
+        },
+        {
+          "value": "white",
+          "label": "Белый",
+          "color": "#F2F2F7"
+        },
+        {
+          "value": "custom",
+          "label": "Свой цвет (поле ниже)"
+        }
+      ]
     },
     {
       "key": "Themes.CustomAccentHex",
       "group": "Themes",
       "name": "Свой цвет акцента",
-      "description": "Например #0A84FF.",
+      "description": "Используется, если в «Цвет акцента» выбран «Свой цвет». Например #0A84FF.",
       "type": "string",
       "default": "#4cc9f0"
     },

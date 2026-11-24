@@ -9,7 +9,11 @@ namespace di::control {
 namespace {
 Handlers g_handlers;
 
-void Dispatch(const std::wstring& cmd) {
+LRESULT Dispatch(const std::wstring& cmd) {
+    if (cmd == L"accent") {  // polled by the Launcher; not logged
+        const unsigned rgb = g_handlers.accent ? g_handlers.accent() : 0;
+        return rgb ? static_cast<LRESULT>(rgb) : TRUE;
+    }
     DI_LOG(L"[Control] command: %s", cmd.c_str());
     if (cmd == L"reload") {
         if (g_handlers.reload) g_handlers.reload();
@@ -22,6 +26,7 @@ void Dispatch(const std::wstring& cmd) {
     } else {
         DI_LOG(L"[Control] unknown command ignored");
     }
+    return TRUE;
 }
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -29,8 +34,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         case WM_COPYDATA: {
             const auto* cds = reinterpret_cast<const COPYDATASTRUCT*>(lParam);
             if (!cds || cds->dwData != ipc::kCommandMagic || !cds->lpData || cds->cbData > 4096) return FALSE;
-            Dispatch(std::wstring(static_cast<const wchar_t*>(cds->lpData), cds->cbData / sizeof(wchar_t)));
-            return TRUE;
+            return Dispatch(std::wstring(static_cast<const wchar_t*>(cds->lpData), cds->cbData / sizeof(wchar_t)));
         }
         case WM_QUERYENDSESSION:
             return TRUE;

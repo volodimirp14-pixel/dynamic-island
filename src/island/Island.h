@@ -7,4 +7,5 @@ void Stop();             // stop everything, give Telegram/Discord their banners
 void ApplySettings();    // re-read the current settings (after settings.json changed)
 void Show();             // un-hide a manually hidden island
 void SetProgress(int percent);  // progress ring 0..100, -1 hides it
+unsigned CurrentAccent();       // live accent 0x01RRGGBB, 0 = not drawn yet
 }  // namespace di::island

@@ -56,9 +56,17 @@ void PostJson(const json& j) {
 }
 
 json StatusJson() {
-    return {{"type", "status"},
-            {"running", di::launcher::IsIslandRunning()},
-            {"autostart", di::launcher::autostart::IsEnabled()}};
+    json j = {{"type", "status"},
+              {"running", di::launcher::IsIslandRunning()},
+              {"autostart", di::launcher::autostart::IsEnabled()},
+              {"accent", nullptr}};
+    const int rgb = di::ipc::QueryAccent();  // the island's live accent (album art while media plays)
+    if (rgb >= 0) {
+        char hex[8];
+        snprintf(hex, sizeof(hex), "#%06X", rgb);
+        j["accent"] = hex;
+    }
+    return j;
 }
 
 void Open(const std::wstring& target, const wchar_t* args = nullptr) {

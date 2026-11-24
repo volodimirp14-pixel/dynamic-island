@@ -101,6 +101,8 @@ namespace {
 // Progress ring percent (0..100, -1 = none), set by `DynamicIsland.exe --progress N`
 // or the Launcher. Replaces the Windhawk value "ProgressPercent" other tools wrote.
 std::atomic<int> g_progressPercent{-1};
+// Island accent as 0x01RRGGBB (0 = not drawn yet); read by the Launcher via the "accent" command.
+std::atomic<uint32_t> g_liveAccentRgb{0};
 // Thread that called di::island::Start (runs the message loop in main.cpp).
 DWORD g_mainThreadId = 0;
 
@@ -1513,6 +1515,8 @@ namespace QuietToggleLayout {
     constexpr float kTrackH = 20.0f;
     constexpr float kMoonGap = 6.0f;      // track left edge -> moon glyph right edge
     constexpr float kMoonW = 16.0f;
+    constexpr float kGearGap = 10.0f;     // moon glyph left edge -> gear right edge (standalone 0.4)
+    constexpr float kGearW = 16.0f;
 }
 
 bool QuietButtonHitTest(const MediaContentPoint& pt) {
@@ -1528,6 +1532,44 @@ bool QuietButtonHitTest(const MediaContentPoint& pt) {
     const float top = QuietToggleLayout::kCenterY - QuietToggleLayout::kTrackH * 0.5f - 6.0f;
     const float bottom = QuietToggleLayout::kCenterY + QuietToggleLayout::kTrackH * 0.5f + 6.0f;
     return pt.x >= left && pt.x <= right && pt.y >= top && pt.y <= bottom;
+}
+
+// Standalone 0.4: the gear left of the moon opens the Launcher.
+bool GearButtonHitTest(const MediaContentPoint& pt) {
+    if (!pt.valid || pt.height < MediaLayout::kExpandedHeight - 12.0f) {
+        return false;
+    }
+    const float fullW = std::max(MediaLayout::kExpandedWidth, pt.width);
+    const float fullLeft = (pt.width - fullW) * 0.5f;
+    const float trackRight = fullLeft + fullW - QuietToggleLayout::kRightInset;
+    const float moonLeft = trackRight - QuietToggleLayout::kTrackW - QuietToggleLayout::kMoonGap -
+                           QuietToggleLayout::kMoonW;
+    const float gearRight = moonLeft - QuietToggleLayout::kGearGap;
+    const float left = gearRight - QuietToggleLayout::kGearW - 5.0f;
+    const float right = gearRight + 4.0f;  // stops short of the toggle's own hit area
+    const float top = QuietToggleLayout::kCenterY - 14.0f;
+    const float bottom = QuietToggleLayout::kCenterY + 14.0f;
+    return pt.x >= left && pt.x <= right && pt.y >= top && pt.y <= bottom;
+}
+
+// Opens the Launcher next to DynamicIsland.exe; without it, settings.json in
+// Notepad (changes apply as soon as the file is saved).
+void OpenLauncher() {
+    wchar_t exe[MAX_PATH] = {};
+    const DWORD n = GetModuleFileNameW(nullptr, exe, MAX_PATH);
+    std::wstring launcher(exe, n);
+    launcher = launcher.substr(0, launcher.find_last_of(L'\\') + 1) + L"DynamicIslandLauncher.exe";
+    HINSTANCE result = nullptr;
+    if (GetFileAttributesW(launcher.c_str()) != INVALID_FILE_ATTRIBUTES) {
+        result = ShellExecuteW(nullptr, L"open", launcher.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    } else {
+        const std::wstring path = di::settings::FilePath();
+        result = ShellExecuteW(nullptr, L"open", L"notepad.exe", (L"\"" + path + L"\"").c_str(), nullptr,
+                               SW_SHOWNORMAL);
+    }
+    if (reinterpret_cast<INT_PTR>(result) <= 32) {
+        DI_LOG(L"Failed to open the settings (%s).", launcher.c_str());
+    }
 }
 
 // True when the point is over the expanded layout's album art.
@@ -2065,6 +2107,23 @@ void LoadSettings() {
     }
 
     next.customAccent = ColorFromHex(GetStringSettingCopy(L"Themes.CustomAccentHex"), next.customAccent);
+    // Standalone 0.4: one of 10 accent presets. In Auto mode it is the colour
+    // while nothing plays (with media the accent still comes from the artwork);
+    // "custom" keeps Themes.CustomAccentHex.
+    {
+        static const struct { const wchar_t* id; UINT32 rgb; } kPresets[] = {
+            {L"teal", 0x4CC9F0},   {L"blue", 0x0A84FF},  {L"violet", 0xBF5AF2}, {L"pink", 0xFF375F},
+            {L"red", 0xFF453A},    {L"orange", 0xFF9F0A}, {L"yellow", 0xFFD60A}, {L"green", 0x30D158},
+            {L"mint", 0x63E6BE},   {L"white", 0xF2F2F7},
+        };
+        const std::wstring preset = GetStringSettingCopy(L"Themes.AccentPreset");
+        for (const auto& p : kPresets) {
+            if (EqualsNoCase(preset, p.id)) {
+                next.customAccent = D2D1::ColorF(p.rgb);
+                break;
+            }
+        }
+    }
 
     const std::wstring calAccent = GetStringSettingWithFallback(L"Themes.CalendarAccent", L"CalendarWeather.CalendarAccent", L"Modules.CalendarAccent");
     if (EqualsNoCase(calAccent, L"system")) {
@@ -8908,26 +8967,9 @@ void ShowContextMenu(HWND hwnd, POINT screenPoint) {
                 PostThreadMessageW(g_mainThreadId, WM_QUIT, 0, 0);
             }
             break;
-        case 9: {
-            // Opens the Launcher (next to DynamicIsland.exe). Without it, settings.json
-            // in Notepad -- changes apply as soon as the file is saved.
-            wchar_t exe[MAX_PATH] = {};
-            const DWORD n = GetModuleFileNameW(nullptr, exe, MAX_PATH);
-            std::wstring launcher(exe, n);
-            launcher = launcher.substr(0, launcher.find_last_of(L'\\') + 1) + L"DynamicIslandLauncher.exe";
-            HINSTANCE result = nullptr;
-            if (GetFileAttributesW(launcher.c_str()) != INVALID_FILE_ATTRIBUTES) {
-                result = ShellExecuteW(nullptr, L"open", launcher.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
-            } else {
-                const std::wstring path = di::settings::FilePath();
-                result = ShellExecuteW(nullptr, L"open", L"notepad.exe", (L"\"" + path + L"\"").c_str(), nullptr,
-                                       SW_SHOWNORMAL);
-            }
-            if (reinterpret_cast<INT_PTR>(result) <= 32) {
-                DI_LOG(L"Failed to open the settings (%s).", launcher.c_str());
-            }
+        case 9:
+            OpenLauncher();
             break;
-        }
         case kShapeMenuIdBase:
         case kShapeMenuIdBase + 1:
         case kShapeMenuIdBase + 2: {
@@ -9774,6 +9816,11 @@ class Renderer {
         }
 
         const D2D1_COLOR_F accent = currentAccent_;
+        // Standalone 0.4: the Launcher tints its own UI with the island's live accent.
+        g_liveAccentRgb.store(0x01000000u |
+                              (static_cast<uint32_t>(Clamp(accent.r, 0.0f, 1.0f) * 255.0f + 0.5f) << 16) |
+                              (static_cast<uint32_t>(Clamp(accent.g, 0.0f, 1.0f) * 255.0f + 0.5f) << 8) |
+                              static_cast<uint32_t>(Clamp(accent.b, 0.0f, 1.0f) * 255.0f + 0.5f));
 
         if (!accentBrush_) target_->CreateSolidColorBrush(accent, &accentBrush_);
         else accentBrush_->SetColor(accent);
@@ -12443,6 +12490,13 @@ class Renderer {
             textBrush_->SetOpacity((0.55f + 0.40f * k) * settingsOpacity_);
             target_->DrawTextW(glyph, 1, iconFormat_.Get(),
                                D2D1::RectF(moonRight - QuietToggleLayout::kMoonW, cy - 11.0f, moonRight, cy + 11.0f),
+                               textBrush_.Get(), D2D1_DRAW_TEXT_OPTIONS_CLIP);
+            // Standalone 0.4: settings gear (opens the Launcher), same weight as the moon.
+            const float gearRight = moonRight - QuietToggleLayout::kMoonW - QuietToggleLayout::kGearGap;
+            const wchar_t* gear = L"\uE713";  // Settings, MDL2 and Fluent
+            textBrush_->SetOpacity(0.70f * settingsOpacity_);
+            target_->DrawTextW(gear, 1, iconFormat_.Get(),
+                               D2D1::RectF(gearRight - QuietToggleLayout::kGearW, cy - 11.0f, gearRight, cy + 11.0f),
                                textBrush_.Get(), D2D1_DRAW_TEXT_OPTIONS_CLIP);
             textBrush_->SetOpacity(1.0f);
             iconFormat_->SetTextAlignment(oldAlign);
@@ -15480,6 +15534,15 @@ LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     QuietMode::Set(true, /*fromToggle=*/true);
                     return 0;
                 }
+                // Standalone 0.4: the gear next to it opens the Launcher.
+                if (g_settings.quietButton && !kinds.empty() &&
+                    ((kinds[0] == IslandKind::Idle && !(g_settings.gameOverlay || g_gameOverlayPinned.load())) ||
+                     kinds[0] == IslandKind::Media) &&
+                    NormalizedTabIndex(g_settings) == 0 &&
+                    GearButtonHitTest(MediaContentFromClient(xPos, yPos))) {
+                    OpenLauncher();
+                    return 0;
+                }
 
                 // Clicking a Telegram / Discord card dismisses it and opens the app.
                 // In a split layout (kinds.size() > 1), don't dismiss if clicking on the secondary pill on the right.
@@ -16895,6 +16958,10 @@ void Show() {
         (g_manuallyHidden.load() || !IsWindowVisible(g_hwnd))) {
         PostMessageW(g_hwnd, WM_HOTKEY, ID_HIDE_SHOW_HOTKEY, 0);
     }
+}
+
+unsigned CurrentAccent() {
+    return g_liveAccentRgb.load();
 }
 
 void SetProgress(int percent) {
