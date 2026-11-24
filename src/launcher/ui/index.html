@@ -184,7 +184,8 @@ const SUBSECTIONS = {
     ['Музыкальный плеер', ['Media', 'MediaAutoExpand', 'MediaPillClock', 'MediaExpandBlocklist']],
     ['Часы и календарь', ['Language', 'ClockFormat', 'ShowSeconds', 'DateFormat', 'DateFirst', 'FirstDayOfWeek']],
     ['Погода', ['Weather', 'WeatherCity', 'WeatherFahrenheit']],
-    ['Всплывающие окна', ['Volume', 'Brightness', 'Battery', 'BluetoothIndicator', 'BluetoothShowBattery', 'Progress', 'TimerModule']],
+    ['Всплывающие окна', ['Volume', 'Brightness', 'Battery', 'Progress', 'TimerModule']],
+    ['Bluetooth-устройства', ['BluetoothDashboard', 'SonyPadBattery', 'BluetoothIndicator', 'BluetoothShowBattery']],
     ['Монитор железа и игровой оверлей', ['HardwareMonitorModule', 'ShowMetricText', 'GameOverlay', 'GameOverlayShowFps', 'GameOverlayShowCpu', 'GameOverlayShowGpu', 'GameOverlayShowRam', 'GameOverlayShowDisk', 'GameOverlayCompact']],
   ],
   Themes: [
@@ -221,6 +222,7 @@ const ACTIVE_IF = {
   'Modules.MediaPillClock': () => !!v('Modules.Media'),
   'Modules.MediaExpandBlocklist': () => !!v('Modules.Media') && !!v('Modules.MediaAutoExpand'),
   'Modules.BluetoothShowBattery': () => !!v('Modules.BluetoothIndicator'),
+  'Modules.SonyPadBattery': () => !!v('Modules.BluetoothDashboard'),
   'Shortcuts.HideShowModifiers': () => !!v('Shortcuts.HideShowHotkeyEnabled'),
   'Shortcuts.HideShowKey': () => !!v('Shortcuts.HideShowHotkeyEnabled'),
   'QuietMode.HotkeyModifiers': () => !!v('QuietMode.HotkeyEnabled'),

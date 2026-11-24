@@ -876,14 +876,30 @@
     {
       "key": "Modules.BluetoothIndicator",
       "group": "Modules",
-      "name": "Подключение Bluetooth-устройств",
+      "name": "Окно при подключении и отключении Bluetooth",
       "type": "bool",
       "default": true
     },
     {
       "key": "Modules.BluetoothShowBattery",
       "group": "Modules",
-      "name": "Заряд Bluetooth-устройств",
+      "name": "Заряд в окне подключения Bluetooth",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Modules.BluetoothDashboard",
+      "group": "Modules",
+      "name": "Bluetooth-устройства и заряд в развёрнутом острове",
+      "description": "Слева сверху на вкладке часов и на вкладке плеера: значок устройства (наушники, геймпад, мышь…) и заряд батареи. Заряд обновляется раз в минуту и через несколько секунд после подключения.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "Modules.SonyPadBattery",
+      "group": "Modules",
+      "name": "Заряд геймпадов PlayStation (DualSense, DualShock 4)",
+      "description": "Windows не сообщает заряд этих геймпадов, он читается из самого геймпада. По Bluetooth для этого геймпад переключается в расширенный режим — так же делает Steam. Если какая-то старая игра перестанет видеть геймпад, выключите и переподключите его.",
       "type": "bool",
       "default": true
     },

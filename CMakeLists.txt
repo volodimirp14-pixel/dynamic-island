@@ -34,7 +34,7 @@ add_executable(DynamicIsland WIN32
 )
 target_link_options(DynamicIsland PRIVATE /MANIFEST:NO)  # our own manifest comes from island.rc
 # Same libraries the Windhawk mod linked (@compilerOptions), plus WinRT.
-target_link_libraries(DynamicIsland PRIVATE di_common
+target_link_libraries(DynamicIsland PRIVATE di_common hid
   windowsapp runtimeobject oleaut32 shcore d2d1 dwrite dwmapi gdi32
   windowscodecs setupapi winhttp pdh winmm)
 
