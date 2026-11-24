@@ -226,7 +226,10 @@ Windhawk-версия **не удаляется и не меняется** до 
 
 ---
 
-## 9. Решения, которые нужны от вас
+## 9. Решения (приняты 2026-11-24)
+Launcher — **WebView2**; сборка — **GitHub + GitHub Actions**; `ProgressPercent` — **оставить** (команда для внешних программ); название — **Dynamic Island**, `%APPDATA%\DynamicIsland`; настройки — **по умолчанию**, без переноса из Windhawk.
+
+Исходные вопросы:
 1. **Launcher на WebView2** (рекомендую) или WPF/.NET?
 2. **Как собирать:** GitHub + GitHub Actions (рекомендую; нужен ваш аккаунт GitHub) или Visual Studio Build Tools у вас?
 3. **`ProgressPercent`** (кольцо прогресса, которое могли включать внешние программы через Windhawk): оставить через команду или убрать?

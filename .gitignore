@@ -1,4 +1,4 @@
-Thumbs.db
-*.bak
 build/
 out/
+*.user
+.vs/
