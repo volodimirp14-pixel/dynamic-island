@@ -3338,8 +3338,7 @@ void Follow(HWND hwnd) {
     }
 
     const RECT work = GetAnchorWorkRect();
-    const int workW = work.right - work.left;
-    const float pillW = g_pillClientRect.valid ? (g_pillClientRect.right - g_pillClientRect.left) : 200.0f;
+    const float workW = static_cast<float>(work.right - work.left);
     int offset = g_startOffset + (pt.x - g_downPt.x);
 
     Position position;
@@ -3349,10 +3348,30 @@ void Follow(HWND hwnd) {
         position = g_settings.position;
         scale = g_settings.sizeScale;
     }
+    // Standalone 0.11.2: while moving, the island is held open, so the limits are
+    // worked out for the open (widest) island, including the hover enlargement.
+    // Its edges stop exactly at the screen edges.
+    const float openW = MediaLayout::kExpandedWidth * scale * 1.025f;
+    const float shownW = g_pillClientRect.valid ? (g_pillClientRect.right - g_pillClientRect.left) : 0.0f;
+    const float pillW = std::min(workW, std::max(openW, shownW));
+    float baseLeft;  // pill's left edge (relative to the work area) at offset 0
+    switch (position) {
+        case Position::TopLeft:
+        case Position::BottomLeft:
+            baseLeft = 16.0f;
+            break;
+        case Position::TopRight:
+        case Position::BottomRight:
+            baseLeft = workW - 16.0f - pillW;
+            break;
+        default:
+            baseLeft = (workW - pillW) * 0.5f;
+            break;
+    }
+    const int minOffset = static_cast<int>(std::ceil(-baseLeft));
+    const int maxOffset = std::max(minOffset, static_cast<int>(std::floor(workW - pillW - baseLeft)));
+    offset = std::clamp(offset, minOffset, maxOffset);
     if (Centered(position)) {
-        // Keep the whole pill on the screen.
-        const int limit = std::max(0, static_cast<int>((workW - pillW) * 0.5f) - 8);
-        offset = std::clamp(offset, -limit, limit);
         // Magnet: close to the middle -> exactly the middle.
         const int snapPx = static_cast<int>(std::max(16.0f, 28.0f * scale));
         const bool snap = std::abs(offset) <= snapPx;
@@ -3361,8 +3380,6 @@ void Follow(HWND hwnd) {
             g_snapPauseUntil = NowSeconds() + 0.25;  // a short "click" into place
         }
         g_snapped = snap;
-    } else {
-        offset = std::clamp(offset, -workW, workW);
     }
 
     bool changed = false;
@@ -17017,6 +17034,9 @@ DWORD WINAPI RenderThreadProc(void*) {
         }
 
         bool isHoverExpanded = g_settings.expandOnHover ? hover : (hover && g_clickExpanded.load());
+        // Standalone 0.11.2: while it is being moved the island stays open, even
+        // when the cursor slips off it.
+        if (IslandMove::Active()) isHoverExpanded = true;
         // Standalone 0.9.1: the game overlay (FPS / CPU / RAM) used to replace only
         // the clock, so while music was playing it never appeared. Now it also takes
         // the collapsed player's place; hovering / clicking / pinning still opens the
