@@ -8860,8 +8860,16 @@ int ReadPanelBrightness(bool onAc) {
                           OPEN_EXISTING, 0, nullptr);
     }
     if (lcd == INVALID_HANDLE_VALUE) {
-        DI_LOG(L"Brightness: cannot open the LCD device (error %lu), retrying in 30s", GetLastError());
-        s_retryAt = now + 30.0;
+        // Standalone 0.9: back off 30 s -> 10 min and log once. A desktop simply has
+        // no built-in panel; retrying every 30 s forever only filled the log.
+        static double s_backoff = 30.0;
+        static bool s_logged = false;
+        if (!s_logged) {
+            DI_LOG(L"Brightness: no built-in display to read (error %lu); checking again now and then.", GetLastError());
+            s_logged = true;
+        }
+        s_retryAt = now + s_backoff;
+        s_backoff = std::min(s_backoff * 2.0, 600.0);
         return -1;
     }
 
@@ -10553,6 +10561,8 @@ class Renderer {
         trackGrad_ = LinearGradientSlot{};
         bloomGrad_ = RadialGradientSlot{};
         glassSheenGrad_ = LinearGradientSlot{};
+        clockGlowGrad_ = RadialGradientSlot{};
+        for (LinearGradientSlot& g : sparkGrad_) g = LinearGradientSlot{};
         glassRimGrad_ = LinearGradientSlot{};
         for (ShapeEntry& e : shapeCache_) e = ShapeEntry{};
     }
@@ -11163,7 +11173,7 @@ class Renderer {
     }
 
     void DrawStockSparkline(const StockQuote& q, D2D1_RECT_F area, const D2D1_COLOR_F& color,
-                            bool showBase) {
+                            bool showBase, int slot) {
         const size_t n = q.points.size();
         if (n < 2 || area.right - area.left < 8.0f || area.bottom - area.top < 4.0f) {
             return;
@@ -11227,16 +11237,10 @@ class Renderer {
             {0.0f, WithAlpha(color, 0.30f * settingsOpacity_)},
             {1.0f, WithAlpha(color, 0.0f)},
         };
-        ComPtr<ID2D1GradientStopCollection> coll;
-        if (SUCCEEDED(target_->CreateGradientStopCollection(stops, 2, &coll)) && coll) {
-            ComPtr<ID2D1LinearGradientBrush> grad;
-            if (SUCCEEDED(target_->CreateLinearGradientBrush(
-                    D2D1::LinearGradientBrushProperties(D2D1::Point2F(area.left, area.top),
-                                                        D2D1::Point2F(area.left, area.bottom)),
-                    coll.Get(), &grad)) &&
-                grad) {
-                target_->FillGeometry(fill.Get(), grad.Get());
-            }
+        if (ID2D1LinearGradientBrush* grad =
+                UseLinearGradient(sparkGrad_[std::clamp(slot, 0, kStockSlots - 1)], stops, 2,
+                                  D2D1::Point2F(area.left, area.top), D2D1::Point2F(area.left, area.bottom))) {
+            target_->FillGeometry(fill.Get(), grad);  // standalone 0.9: cached per card
         }
         if (ID2D1SolidColorBrush* b = AcquireBrush(WithAlpha(color, 0.95f * settingsOpacity_))) {
             target_->DrawGeometry(line.Get(), b, 1.4f);
@@ -11365,7 +11369,7 @@ class Renderer {
             if (hasData) {
                 const D2D1_RECT_F area = D2D1::RectF(leftColRight + 10.0f * scale, card.top + 17.0f * scale,
                                                      card.right - inX, card.bottom - 5.0f * scale);
-                DrawStockSparkline(q, area, tint, settings.stocksRange == StocksRange::Day);
+                DrawStockSparkline(q, area, tint, settings.stocksRange == StocksRange::Day, i);
             }
         }
 
@@ -11426,8 +11430,7 @@ class Renderer {
             : material_.accent;
         accentColor.a = 0.95f * settingsOpacity_;
 
-        ComPtr<ID2D1SolidColorBrush> accent;
-        target_->CreateSolidColorBrush(accentColor, &accent);
+        ID2D1SolidColorBrush* accent = AcquireBrush(accentColor);  // per-frame pool, no allocation
 
         if (calendarCachedDate_.wYear != local.wYear || calendarCachedDate_.wMonth != local.wMonth ||
             calendarCachedDate_.wDay != local.wDay ||
@@ -11482,7 +11485,7 @@ class Renderer {
                                boldTextFormat_.Get(),
                                D2D1::RectF(hero.left + 3.0f * scale, hero.top + 6.0f * scale,
                                            hero.right - 3.0f * scale, hero.top + 22.0f * scale),
-                               accent.Get(), D2D1_DRAW_TEXT_OPTIONS_CLIP);
+                               accent, D2D1_DRAW_TEXT_OPTIONS_CLIP);
         }
 
         wchar_t yearStr[16] = {};
@@ -11578,7 +11581,7 @@ class Renderer {
                 target_->FillEllipse(
                     D2D1::Ellipse(D2D1::Point2F(cell.left + colW * 0.5f, cell.top + rowH * 0.5f),
                                   markerR, markerR),
-                    accent.Get());
+                    accent);
                 // Today's figure is drawn against the accent fill, so it needs the
                 // primary text colour at full strength rather than the 0.85 the
                 // other days use.
@@ -12017,12 +12020,11 @@ class Renderer {
 
         // Hairline divider, inset from both ends so it reads as a separator
         // rather than a full-height rule.
-        ComPtr<ID2D1SolidColorBrush> divider;
-        target_->CreateSolidColorBrush(WithAlpha(material_.hairline, material_.hairline.a * settingsOpacity_), &divider);
+        ID2D1SolidColorBrush* divider = AcquireBrush(WithAlpha(material_.hairline, material_.hairline.a * settingsOpacity_));  // per-frame pool, no allocation
         target_->FillRoundedRectangle(
             D2D1::RoundedRect(D2D1::RectF(dividerX, rect.top + 34.0f * scale,
                                           dividerX + 1.0f * scale, rect.bottom - 34.0f * scale),
-                              0.5f * scale, 0.5f * scale), divider.Get());
+                              0.5f * scale, 0.5f * scale), divider);
 
         // ── Metric cards ─────────────────────────────────────────────────────
         // Each card is icon + label on one line with the value beneath, which
@@ -12249,23 +12251,15 @@ class Renderer {
 
         if (settings.clockAccentGlow) {
             D2D1_COLOR_F accentColor = accentBrush_ ? accentBrush_->GetColor() : D2D1::ColorF(0x4cc9f0);
-            D2D1_GRADIENT_STOP stops[2] = {
+            const D2D1_GRADIENT_STOP stops[2] = {
                 {0.0f, D2D1::ColorF(accentColor.r, accentColor.g, accentColor.b, 0.24f)},
                 {1.0f, D2D1::ColorF(accentColor.r, accentColor.g, accentColor.b, 0.0f)},
             };
-            ComPtr<ID2D1GradientStopCollection> glowStops;
-            target_->CreateGradientStopCollection(stops, 2, &glowStops);
-
-            if (glowStops) {
-                const D2D1_POINT_2F glowCenter = D2D1::Point2F(cx, cy - 8.0f * scale);
-                ComPtr<ID2D1RadialGradientBrush> glowBrush;
-                target_->CreateRadialGradientBrush(
-                    D2D1::RadialGradientBrushProperties(glowCenter, D2D1::Point2F(0, 0),
-                                                         150.0f * scale, 70.0f * scale),
-                    glowStops.Get(), &glowBrush);
-                if (glowBrush) {
-                    target_->FillEllipse(D2D1::Ellipse(glowCenter, 150.0f * scale, 70.0f * scale), glowBrush.Get());
-                }
+            // Standalone 0.9: cached; rebuilt only while the accent colour changes.
+            const D2D1_POINT_2F glowCenter = D2D1::Point2F(cx, cy - 8.0f * scale);
+            if (ID2D1RadialGradientBrush* glowBrush =
+                    UseRadialGradient(clockGlowGrad_, stops, 2, glowCenter, 150.0f * scale, 70.0f * scale)) {
+                target_->FillEllipse(D2D1::Ellipse(glowCenter, 150.0f * scale, 70.0f * scale), glowBrush);
             }
         }
 
@@ -12360,12 +12354,11 @@ class Renderer {
                     const float pillX = cx - pillW * 0.5f;
                     const float pillY = rect.bottom - 18.0f * scale - pillH;
 
-                    ComPtr<ID2D1SolidColorBrush> badgeBg;
-                    target_->CreateSolidColorBrush(WithAlpha(material_.raised, material_.raised.a * settingsOpacity_), &badgeBg);
+                    ID2D1SolidColorBrush* badgeBg = AcquireBrush(WithAlpha(material_.raised, material_.raised.a * settingsOpacity_));  // per-frame pool, no allocation
                     if (badgeBg) {
                         target_->FillRoundedRectangle(
                             D2D1::RoundedRect(D2D1::RectF(pillX, pillY, pillX + pillW, pillY + pillH), pillH * 0.5f, pillH * 0.5f),
-                            badgeBg.Get());
+                            badgeBg);
                     }
 
                     ComPtr<ID2D1SolidColorBrush> dotBrush;
@@ -13485,9 +13478,8 @@ class Renderer {
                                    textBrush_.Get(), D2D1_DRAW_TEXT_OPTIONS_NONE);
                 textBrush_->SetOpacity(1.0f);
 
-                ComPtr<ID2D1SolidColorBrush> divider;
-                target_->CreateSolidColorBrush(
-                    WithAlpha(material_.hairline, material_.hairline.a * settingsOpacity_), &divider);
+                ID2D1SolidColorBrush* divider = AcquireBrush(
+                    WithAlpha(material_.hairline, material_.hairline.a * settingsOpacity_));  // per-frame pool, no allocation
                 if (divider) {
                     const float divX = clockLeft + pillMetrics.clockWidth + MediaPillLayout::kSlotGap;
                     const float divW = MediaPillLayout::kDividerWidth;
@@ -13495,7 +13487,7 @@ class Renderer {
                         D2D1::RoundedRect(D2D1::RectF(divX, rect.top + MediaPillLayout::kDividerInsetY,
                                                       divX + divW, rect.bottom - MediaPillLayout::kDividerInsetY),
                                           divW * 0.5f, divW * 0.5f),
-                        divider.Get());
+                        divider);
                 }
             }
 
@@ -14405,8 +14397,7 @@ class Renderer {
         const float dir = specDir_;
 
         EnsureRoundJoinStyle();
-        ComPtr<ID2D1SolidColorBrush> hot;
-        target_->CreateSolidColorBrush(MixColor(material_.accent, D2D1::ColorF(1, 1, 1, 1), 0.6f), &hot);
+        ID2D1SolidColorBrush* hot = AcquireBrush(MixColor(material_.accent, D2D1::ColorF(1, 1, 1, 1), 0.6f));  // per-frame pool, no allocation
 
         // Front position (normalised, already mirrored for "previous").
         const float front = t < 0.15f ? -0.4f : -0.4f + 1.9f * SkipEaseInOut((t - 0.15f) / 0.78f);
@@ -14453,7 +14444,7 @@ class Renderer {
             target_->DrawGeometry(path.Get(), accentBrush_.Get(), strand ? 1.1f : 1.6f, roundJoinStyle_.Get());
             if (hot && !strand) {
                 hot->SetOpacity(0.35f + 0.4f * specKick_);
-                target_->DrawGeometry(path.Get(), hot.Get(), 0.6f, roundJoinStyle_.Get());
+                target_->DrawGeometry(path.Get(), hot, 0.6f, roundJoinStyle_.Get());
             }
         }
 
@@ -14464,7 +14455,7 @@ class Renderer {
             const float a = 1.0f - Clamp((t - 0.80f) / 0.2f, 0.0f, 1.0f);
             if (front > -0.1f && front < 1.15f) {
                 hot->SetOpacity(0.85f * a);
-                target_->FillEllipse(D2D1::Ellipse(D2D1::Point2F(rect.left + xn * w, cy), 2.2f, 2.2f), hot.Get());
+                target_->FillEllipse(D2D1::Ellipse(D2D1::Point2F(rect.left + xn * w, cy), 2.2f, 2.2f), hot);
                 accentBrush_->SetOpacity(0.28f * a);
                 target_->FillEllipse(D2D1::Ellipse(D2D1::Point2F(rect.left + xn * w, cy), 5.5f, 5.5f), accentBrush_.Get());
             }
@@ -14485,8 +14476,7 @@ class Renderer {
         const float t = specT_;
         const float dir = specDir_;
 
-        ComPtr<ID2D1SolidColorBrush> hot;
-        target_->CreateSolidColorBrush(MixColor(material_.accent, D2D1::ColorF(1, 1, 1, 1), 0.7f), &hot);
+        ID2D1SolidColorBrush* hot = AcquireBrush(MixColor(material_.accent, D2D1::ColorF(1, 1, 1, 1), 0.7f));  // per-frame pool, no allocation
 
         // Scan position in column units, mirrored for "previous".
         const float travel = static_cast<float>(cols) + 4.0f;
@@ -14529,7 +14519,7 @@ class Renderer {
                 const float topness = rows > 1 ? static_cast<float>(r) / (rows - 1) : 0.0f;
                 if (flash > 0.0f) {
                     // Whole column ignites, fading from the bottom up as the tail dies.
-                    ID2D1SolidColorBrush* b = (hot && flash > 0.7f && r >= rows / 2) ? hot.Get() : accentBrush_.Get();
+                    ID2D1SolidColorBrush* b = (hot && flash > 0.7f && r >= rows / 2) ? hot : accentBrush_.Get();
                     b->SetOpacity(Clamp(0.25f + 0.75f * flash, 0.0f, 1.0f) * (0.6f + 0.4f * (1.0f - topness)));
                     target_->FillRoundedRectangle(D2D1::RoundedRect(cell, rr, rr), b);
                 } else if (r < lit) {
@@ -14537,7 +14527,7 @@ class Renderer {
                     target_->FillRoundedRectangle(D2D1::RoundedRect(cell, rr, rr), accentBrush_.Get());
                 } else if (r == cap && cap >= lit && pk > 0.05f && hot) {
                     hot->SetOpacity(0.9f * colAlpha);
-                    target_->FillRoundedRectangle(D2D1::RoundedRect(cell, rr, rr), hot.Get());
+                    target_->FillRoundedRectangle(D2D1::RoundedRect(cell, rr, rr), hot);
                 } else {
                     accentBrush_->SetOpacity(0.09f * colAlpha);
                     target_->FillRoundedRectangle(D2D1::RoundedRect(cell, rr, rr), accentBrush_.Get());
@@ -14706,10 +14696,9 @@ class Renderer {
             DrawBitmapPixels(pixels, rect, cache, cachedGeneration, opacity);
         }
 
-        ComPtr<ID2D1SolidColorBrush> border;
-        target_->CreateSolidColorBrush(material_.hairline, &border);
+        ID2D1SolidColorBrush* border = AcquireBrush(material_.hairline);  // per-frame pool, no allocation
         if (border) {
-            target_->DrawEllipse(D2D1::Ellipse(center, radius, radius), border.Get(), 1.0f);
+            target_->DrawEllipse(D2D1::Ellipse(center, radius, radius), border, 1.0f);
         }
     }
 
@@ -14836,13 +14825,11 @@ class Renderer {
 
         // Avatar: coloured circle with initials (the listener API gives no photo).
         const std::wstring& who = top.group ? top.chat : top.sender;
-        ComPtr<ID2D1SolidColorBrush> avatarBrush;
-        target_->CreateSolidColorBrush(TelegramLook::AvatarColor(who), &avatarBrush);
+        ID2D1SolidColorBrush* avatarBrush = AcquireBrush(TelegramLook::AvatarColor(who));  // per-frame pool, no allocation
         if (avatarBrush) {
-            target_->FillEllipse(D2D1::Ellipse(ac, avatarR, avatarR), avatarBrush.Get());
+            target_->FillEllipse(D2D1::Ellipse(ac, avatarR, avatarR), avatarBrush);
         }
-        ComPtr<ID2D1SolidColorBrush> whiteBrush;
-        target_->CreateSolidColorBrush(D2D1::ColorF(1.0f, 1.0f, 1.0f, 0.96f), &whiteBrush);
+        ID2D1SolidColorBrush* whiteBrush = AcquireBrush(D2D1::ColorF(1.0f, 1.0f, 1.0f, 0.96f));  // per-frame pool, no allocation
         if (whiteBrush) {
             const std::wstring initials = TelegramLook::Initials(who);
             const DWRITE_TEXT_ALIGNMENT oldAlign = textFormat_->GetTextAlignment();
@@ -14851,7 +14838,7 @@ class Renderer {
             textFormat_->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
             target_->DrawTextW(initials.c_str(), static_cast<UINT32>(initials.size()), textFormat_.Get(),
                                D2D1::RectF(ac.x - avatarR, ac.y - avatarR, ac.x + avatarR, ac.y + avatarR),
-                               whiteBrush.Get(), D2D1_DRAW_TEXT_OPTIONS_CLIP);
+                               whiteBrush, D2D1_DRAW_TEXT_OPTIONS_CLIP);
             textFormat_->SetTextAlignment(oldAlign);
             textFormat_->SetParagraphAlignment(oldPara);
         }
@@ -14864,7 +14851,7 @@ class Renderer {
             const float dotR = avatarR * 0.30f;
             const D2D1_POINT_2F dot = D2D1::Point2F(ac.x + avatarR * 0.72f, ac.y + avatarR * 0.72f);
             target_->FillEllipse(D2D1::Ellipse(dot, dotR, dotR), tgBlue.Get());
-            target_->DrawEllipse(D2D1::Ellipse(dot, dotR, dotR), whiteBrush.Get(), 1.2f);
+            target_->DrawEllipse(D2D1::Ellipse(dot, dotR, dotR), whiteBrush, 1.2f);
         }
 
         const float tx = ac.x + avatarR + 14.0f;
@@ -14910,9 +14897,8 @@ class Renderer {
                                         rect.left + 14 + badgeSz, cy + badgeSz * 0.5f);
         const float br = badgeSz * 0.35f; // Softer squircle corners
 
-        ComPtr<ID2D1SolidColorBrush> badgeBg;
-        target_->CreateSolidColorBrush(material_.raisedStrong, &badgeBg);
-        target_->FillRoundedRectangle(D2D1::RoundedRect(badge, br, br), badgeBg.Get());
+        ID2D1SolidColorBrush* badgeBg = AcquireBrush(material_.raisedStrong);  // per-frame pool, no allocation
+        target_->FillRoundedRectangle(D2D1::RoundedRect(badge, br, br), badgeBg);
 
         const wchar_t* glyph = muted ? L"\uE74F" : (usingFluentIcons_ ? L"\uE767" : L"\uE993");
         textBrush_->SetOpacity(0.95f);
@@ -14990,16 +14976,14 @@ class Renderer {
                                         rect.left + 14 + badgeSz, cy + badgeSz * 0.5f);
         const float br = badgeSz * 0.35f;
 
-        ComPtr<ID2D1SolidColorBrush> badgeBg;
-        target_->CreateSolidColorBrush(material_.raisedStrong, &badgeBg);
-        target_->FillRoundedRectangle(D2D1::RoundedRect(badge, br, br), badgeBg.Get());
+        ID2D1SolidColorBrush* badgeBg = AcquireBrush(material_.raisedStrong);  // per-frame pool, no allocation
+        target_->FillRoundedRectangle(D2D1::RoundedRect(badge, br, br), badgeBg);
 
         const float ringR = badgeSz * 0.30f;
         D2D1_POINT_2F ringCenter = D2D1::Point2F((badge.left + badge.right) * 0.5f,
                                                   (badge.top + badge.bottom) * 0.5f);
-        ComPtr<ID2D1SolidColorBrush> ringTrack;
-        target_->CreateSolidColorBrush(material_.raisedStrong, &ringTrack);
-        target_->DrawEllipse(D2D1::Ellipse(ringCenter, ringR, ringR), ringTrack.Get(), 2.0f);
+        ID2D1SolidColorBrush* ringTrack = AcquireBrush(material_.raisedStrong);  // per-frame pool, no allocation
+        target_->DrawEllipse(D2D1::Ellipse(ringCenter, ringR, ringR), ringTrack, 2.0f);
 
         ComPtr<ID2D1PathGeometry> geometry;
         d2dFactory_->CreatePathGeometry(&geometry);
@@ -15030,15 +15014,14 @@ class Renderer {
         target_->DrawGeometry(geometry.Get(), ringFg.Get(), 2.4f);
 
         if (state.timer.active && !state.timer.running) {
-            ComPtr<ID2D1SolidColorBrush> pauseBrush;
-            target_->CreateSolidColorBrush(D2D1::ColorF(1, 1, 1, 0.9f), &pauseBrush);
+            ID2D1SolidColorBrush* pauseBrush = AcquireBrush(D2D1::ColorF(1, 1, 1, 0.9f));  // per-frame pool, no allocation
             const float h = ringR * 0.7f;
             target_->FillRectangle(
                 D2D1::RectF(ringCenter.x - 2.6f, ringCenter.y - h * 0.5f,
-                            ringCenter.x - 0.8f, ringCenter.y + h * 0.5f), pauseBrush.Get());
+                            ringCenter.x - 0.8f, ringCenter.y + h * 0.5f), pauseBrush);
             target_->FillRectangle(
                 D2D1::RectF(ringCenter.x + 0.8f, ringCenter.y - h * 0.5f,
-                            ringCenter.x + 2.6f, ringCenter.y + h * 0.5f), pauseBrush.Get());
+                            ringCenter.x + 2.6f, ringCenter.y + h * 0.5f), pauseBrush);
         }
 
         const float tx = badge.right + 14;
@@ -15073,9 +15056,8 @@ class Renderer {
                                         rect.left + 14 + badgeSz, cy + badgeSz * 0.5f);
         const float br = badgeSz * 0.35f;
 
-        ComPtr<ID2D1SolidColorBrush> badgeBg;
-        target_->CreateSolidColorBrush(material_.raisedStrong, &badgeBg);
-        target_->FillRoundedRectangle(D2D1::RoundedRect(badge, br, br), badgeBg.Get());
+        ID2D1SolidColorBrush* badgeBg = AcquireBrush(material_.raisedStrong);  // per-frame pool, no allocation
+        target_->FillRoundedRectangle(D2D1::RoundedRect(badge, br, br), badgeBg);
 
         const wchar_t* glyph = usingFluentIcons_ ? L"\uECF0" : L"\uE88E";
         textBrush_->SetOpacity(0.95f);
@@ -15229,9 +15211,8 @@ class Renderer {
                                         rect.left + 14 + badgeSz, cy + badgeSz * 0.5f);
         const float br = badgeSz * 0.35f;
 
-        ComPtr<ID2D1SolidColorBrush> badgeBg;
-        target_->CreateSolidColorBrush(material_.raisedStrong, &badgeBg);
-        target_->FillRoundedRectangle(D2D1::RoundedRect(badge, br, br), badgeBg.Get());
+        ID2D1SolidColorBrush* badgeBg = AcquireBrush(material_.raisedStrong);  // per-frame pool, no allocation
+        target_->FillRoundedRectangle(D2D1::RoundedRect(badge, br, br), badgeBg);
 
         DrawBluetoothCategoryIcon(badge, state.bluetoothDevice.category);
 
@@ -15273,11 +15254,10 @@ class Renderer {
 
             D2D1_RECT_F batRect = D2D1::RectF(batLeft, batY - bh * 0.5f,
                                               batLeft + bw, batY + bh * 0.5f);
-            ComPtr<ID2D1SolidColorBrush> batBorder;
-            target_->CreateSolidColorBrush(D2D1::ColorF(1, 1, 1, 0.75f), &batBorder);
-            target_->DrawRoundedRectangle(D2D1::RoundedRect(batRect, 1.5f, 1.5f), batBorder.Get(), 1.2f);
+            ID2D1SolidColorBrush* batBorder = AcquireBrush(D2D1::ColorF(1, 1, 1, 0.75f));  // per-frame pool, no allocation
+            target_->DrawRoundedRectangle(D2D1::RoundedRect(batRect, 1.5f, 1.5f), batBorder, 1.2f);
             D2D1_RECT_F nub = D2D1::RectF(batRect.right, batY - 2.0f, batRect.right + nubW, batY + 2.0f);
-            target_->FillRectangle(nub, batBorder.Get());
+            target_->FillRectangle(nub, batBorder);
 
             const float pct = Clamp(battery / 100.0f, 0.0f, 1.0f);
             D2D1_RECT_F fill = D2D1::RectF(batRect.left + 1.5f, batRect.top + 1.5f,
@@ -15312,9 +15292,8 @@ class Renderer {
                                         rect.left + 14 + badgeSz, cy + badgeSz * 0.5f);
         const float br = badgeSz * 0.35f;
 
-        ComPtr<ID2D1SolidColorBrush> badgeBg;
-        target_->CreateSolidColorBrush(material_.raisedStrong, &badgeBg);
-        target_->FillRoundedRectangle(D2D1::RoundedRect(badge, br, br), badgeBg.Get());
+        ID2D1SolidColorBrush* badgeBg = AcquireBrush(material_.raisedStrong);  // per-frame pool, no allocation
+        target_->FillRoundedRectangle(D2D1::RoundedRect(badge, br, br), badgeBg);
 
         // Draw battery vector icon
         const float bx = badge.left + badgeSz * 0.25f;
@@ -15323,13 +15302,12 @@ class Renderer {
         const float bh = badgeSz * 0.44f;
         D2D1_RECT_F batRect = D2D1::RectF(bx, by, bx + bw, by + bh);
 
-        ComPtr<ID2D1SolidColorBrush> batBorder;
-        target_->CreateSolidColorBrush(D2D1::ColorF(1, 1, 1, 0.85f), &batBorder);
-        target_->DrawRoundedRectangle(D2D1::RoundedRect(batRect, 2, 2), batBorder.Get(), 1.5f);
+        ID2D1SolidColorBrush* batBorder = AcquireBrush(D2D1::ColorF(1, 1, 1, 0.85f));  // per-frame pool, no allocation
+        target_->DrawRoundedRectangle(D2D1::RoundedRect(batRect, 2, 2), batBorder, 1.5f);
 
         // Battery Terminal (Nub)
         D2D1_RECT_F nubRect = D2D1::RectF(batRect.right, cy - 3, batRect.right + 2.5f, cy + 3);
-        target_->FillRectangle(nubRect, batBorder.Get());
+        target_->FillRectangle(nubRect, batBorder);
 
         // Battery Fill
         const float pct = Clamp(state.battery.percent / 100.0f, 0.0f, 1.0f);
@@ -15556,6 +15534,8 @@ class Renderer {
     LinearGradientSlot trackGrad_;
     RadialGradientSlot bloomGrad_;
     LinearGradientSlot glassSheenGrad_;  // custom fork: Liquid Glass
+    RadialGradientSlot clockGlowGrad_;   // standalone 0.9: cached instead of per frame
+    LinearGradientSlot sparkGrad_[kStockSlots];
     LinearGradientSlot glassRimGrad_;
     ShapeEntry shapeCache_[kShapeCacheSize];
     uint64_t shapeClock_ = 0;
