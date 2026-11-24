@@ -11,6 +11,10 @@ endif()
 
 add_compile_definitions(UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0A00 WINVER=0x0A00 _CRT_SECURE_NO_WARNINGS)
 add_compile_options(/utf-8 /permissive- /EHsc /W4 /Zc:__cplusplus /bigobj)
+# Security hardening (standalone 0.9): Control Flow Guard, extra checks, and at
+# link time CET shadow stacks + static imports resolved from System32 only.
+add_compile_options(/guard:cf /sdl)
+add_link_options(/guard:cf /CETCOMPAT /DYNAMICBASE /HIGHENTROPYVA /NXCOMPAT /DEPENDENTLOADFLAG:0x800)
 include_directories(src third_party)
 
 # ── Shared by both programs: paths, log, settings, island commands ──────────
@@ -18,6 +22,7 @@ add_library(di_common STATIC
   src/common/IpcClient.cpp
   src/common/Log.cpp
   src/common/Paths.cpp
+  src/common/Security.cpp
   src/common/Settings.cpp
 )
 target_link_libraries(di_common PUBLIC shell32 ole32 user32)

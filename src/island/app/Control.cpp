@@ -22,9 +22,18 @@ LRESULT Dispatch(const std::wstring& cmd) {
     } else if (cmd == L"show") {
         if (g_handlers.show) g_handlers.show();
     } else if (cmd.rfind(L"timer ", 0) == 0) {
-        if (g_handlers.timer) g_handlers.timer(cmd.substr(6));
+        const std::wstring action = cmd.substr(6);
+        if ((action == L"25" || action == L"50" || action == L"break" || action == L"pause" || action == L"stop") &&
+            g_handlers.timer) {
+            g_handlers.timer(action);
+        }
     } else if (cmd.rfind(L"progress ", 0) == 0) {
-        if (g_handlers.progress) g_handlers.progress(_wtoi(cmd.c_str() + 9));
+        // Strict number: anything else (or out of range) is ignored.
+        wchar_t* end = nullptr;
+        const long value = wcstol(cmd.c_str() + 9, &end, 10);
+        if (end && *end == L'\0' && value >= -1 && value <= 100 && g_handlers.progress) {
+            g_handlers.progress(static_cast<int>(value));
+        }
     } else {
         DI_LOG(L"[Control] unknown command ignored");
     }
@@ -35,7 +44,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
         case WM_COPYDATA: {
             const auto* cds = reinterpret_cast<const COPYDATASTRUCT*>(lParam);
-            if (!cds || cds->dwData != ipc::kCommandMagic || !cds->lpData || cds->cbData > 4096) return FALSE;
+            // Standalone 0.9: only well-formed UTF-16 commands of sane size.
+            if (!cds || cds->dwData != ipc::kCommandMagic || !cds->lpData || cds->cbData == 0 ||
+                cds->cbData > 256 || (cds->cbData % sizeof(wchar_t)) != 0) {
+                return FALSE;
+            }
             return Dispatch(std::wstring(static_cast<const wchar_t*>(cds->lpData), cds->cbData / sizeof(wchar_t)));
         }
         case WM_QUERYENDSESSION:

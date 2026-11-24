@@ -24,6 +24,7 @@
 #include "common/Log.h"
 #include "common/Paths.h"
 #include "common/Resources.h"
+#include "common/Security.h"
 #include "common/Settings.h"
 #include "common/Utf.h"
 #include "common/Version.h"
@@ -71,6 +72,20 @@ json StatusJson() {
 
 void Open(const std::wstring& target, const wchar_t* args = nullptr) {
     ShellExecuteW(g_hwnd, L"open", target.c_str(), args, nullptr, SW_SHOWNORMAL);
+}
+
+// Standalone 0.9: the page may open only these web sites in the browser.
+int g_navigations = 0;
+bool IsAllowedExternalLink(const wchar_t* uri) {
+    static const wchar_t* const kAllowed[] = {
+        L"https://github.com/volodimirp14-pixel/",
+        L"https://developer.microsoft.com/",
+        L"https://go.microsoft.com/",
+    };
+    for (const wchar_t* prefix : kAllowed) {
+        if (_wcsnicmp(uri, prefix, wcslen(prefix)) == 0) return true;
+    }
+    return false;
 }
 
 // Runs slow island operations off the UI thread, then reports the new status.
@@ -203,7 +218,34 @@ void CreateWebView() {
                             settings->put_IsZoomControlEnabled(FALSE);
 #ifdef NDEBUG
                             settings->put_AreDevToolsEnabled(FALSE);
+                            settings->put_AreBrowserAcceleratorKeysEnabled(FALSE);  // no F5/Ctrl+P/F12 tricks
 #endif
+                            // Standalone 0.9: the page is our built-in HTML only -- no script bridges
+                            // into native objects, no saved passwords or autofill.
+                            settings->put_AreHostObjectsAllowed(FALSE);
+                            ComPtr<ICoreWebView2Settings4> settings4;
+                            if (SUCCEEDED(settings.As(&settings4)) && settings4) {
+                                settings4->put_IsPasswordAutosaveEnabled(FALSE);
+                                settings4->put_IsGeneralAutofillEnabled(FALSE);
+                            }
+                            // Only the very first navigation (our own HTML) may load. Anything else --
+                            // a link, a redirect, a script trying to go elsewhere -- is cancelled;
+                            // allowed web links open in the normal browser instead.
+                            g_webview->add_NavigationStarting(
+                                Callback<ICoreWebView2NavigationStartingEventHandler>(
+                                    [](ICoreWebView2*, ICoreWebView2NavigationStartingEventArgs* args) -> HRESULT {
+                                        if (g_navigations++ == 0) return S_OK;
+                                        LPWSTR uri = nullptr;
+                                        if (SUCCEEDED(args->get_Uri(&uri)) && uri) {
+                                            if (IsAllowedExternalLink(uri)) Open(uri);
+                                            else DI_LOG(L"[Launcher] blocked navigation");
+                                            CoTaskMemFree(uri);
+                                        }
+                                        args->put_Cancel(TRUE);
+                                        return S_OK;
+                                    })
+                                    .Get(),
+                                nullptr);
                             EventRegistrationToken token;
                             g_webview->add_WebMessageReceived(
                                 Callback<ICoreWebView2WebMessageReceivedEventHandler>(
@@ -211,7 +253,12 @@ void CreateWebView() {
                                         LPWSTR raw = nullptr;
                                         if (SUCCEEDED(args->get_WebMessageAsJson(&raw)) && raw) {
                                             try {
-                                                HandleMessage(json::parse(di::WideToUtf8(raw)));
+                                                // Only our own page can talk to us; messages are small.
+                                                if (g_navigations != 1) throw std::runtime_error("page is not ours");
+                                                const std::string text = di::WideToUtf8(raw);
+                                                if (!di::security::JsonLooksSafe(text, 64 * 1024, 8))
+                                                    throw std::runtime_error("message too large or too nested");
+                                                HandleMessage(json::parse(text));
                                             } catch (const std::exception& ex) {
                                                 DI_LOG(L"[Launcher] bad message from page: %s",
                                                        di::Utf8ToWide(ex.what()).c_str());
@@ -228,7 +275,7 @@ void CreateWebView() {
                                     [](ICoreWebView2*, ICoreWebView2NewWindowRequestedEventArgs* args) -> HRESULT {
                                         LPWSTR uri = nullptr;
                                         if (SUCCEEDED(args->get_Uri(&uri)) && uri) {
-                                            if (wcsncmp(uri, L"https://", 8) == 0) Open(uri);
+                                            if (IsAllowedExternalLink(uri)) Open(uri);
                                             CoTaskMemFree(uri);
                                         }
                                         args->put_Handled(TRUE);
@@ -302,6 +349,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     const std::wstring logDir = di::paths::LogDir();
     di::paths::EnsureDir(logDir);
     di::log::Init(logDir, L"launcher");
+    // Extension points stay on here: the WebView text fields may need an IME.
+    di::security::HardenProcess(/*disableExtensionPoints=*/false);
     DI_LOG(L"Launcher %s starting.", di::kAppVersion);
 
     if (!di::settings::Init()) {

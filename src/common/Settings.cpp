@@ -12,6 +12,7 @@
 
 #include <nlohmann/json.hpp>
 #include "common/Resources.h"
+#include "common/Security.h"
 #include "common/Utf.h"
 #include "common/Paths.h"
 #include "common/Log.h"
@@ -28,7 +29,7 @@ std::optional<std::string> ReadFileUtf8(const std::wstring& path) {
     if (f == INVALID_HANDLE_VALUE) return std::nullopt;
     LARGE_INTEGER size = {};
     std::string data;
-    if (GetFileSizeEx(f, &size) && size.QuadPart > 0 && size.QuadPart < 16 * 1024 * 1024) {
+    if (GetFileSizeEx(f, &size) && size.QuadPart > 0 && size.QuadPart < 1024 * 1024) {  // settings are a few KB
         data.resize(static_cast<size_t>(size.QuadPart));
         DWORD read = 0;
         if (!ReadFile(f, data.data(), static_cast<DWORD>(data.size()), &read, nullptr)) read = 0;
@@ -143,7 +144,10 @@ json Validate(const std::string& key, const Entry& e, const json* fromFile, bool
             if (v.is_boolean()) return json(v.get<bool>() ? 1 : 0);
             break;
         case Type::String:
-            if (v.is_string()) return v;
+            if (v.is_string()) {
+                // Standalone 0.9: no setting needs more than this; a huge value is a damaged file.
+                if (v.get_ref<const std::string&>().size() <= 2048) return v;
+            }
             break;
         case Type::Enum:
             if (v.is_string()) {
@@ -191,6 +195,7 @@ bool LoadFile(bool* changedOut) {
         rewrite = true;
     } else {
         try {
+            if (!security::JsonLooksSafe(*content, 1024 * 1024)) throw std::runtime_error("too large or too deeply nested");
             const json root = json::parse(*content);
             if (root.contains("values") && root["values"].is_object()) values = root["values"];
             else throw std::runtime_error("no \"values\" object");
@@ -322,6 +327,7 @@ bool SetValue(const std::string& key, const std::string& valueJson, std::string*
     }
     json v;
     try {
+        if (!security::JsonLooksSafe(valueJson, 4096, 4)) throw std::runtime_error("unsafe");
         v = json::parse(valueJson);
     } catch (...) {
         if (error) *error = "not JSON";
@@ -371,6 +377,7 @@ void Init() {
     const std::optional<std::string> content = ReadFileUtf8(StatePath());
     if (!content) return;
     try {
+        if (!security::JsonLooksSafe(*content, 256 * 1024)) throw std::runtime_error("unsafe");
         const json root = json::parse(*content);
         if (root.contains("values") && root["values"].is_object()) g_state = root["values"];
     } catch (...) {

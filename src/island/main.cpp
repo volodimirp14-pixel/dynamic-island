@@ -14,6 +14,7 @@
 #include "Island.h"
 #include "app/Control.h"
 #include "common/IpcClient.h"
+#include "common/Security.h"
 #include "common/Paths.h"
 #include "app/SingleInstance.h"
 #include "diag/Diagnostics.h"
@@ -48,6 +49,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     const std::wstring logDir = di::paths::LogDir();
     di::paths::EnsureDir(logDir);
     di::log::Init(logDir, L"island");
+    di::security::HardenProcess(/*disableExtensionPoints=*/true);
 
     bool diagnose = false;
     const std::wstring command = CommandFromArgs(&diagnose);

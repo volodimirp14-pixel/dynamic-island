@@ -95,6 +95,7 @@
 #include "common/Paths.h"
 #include "common/Log.h"
 #include "common/Settings.h"
+#include "common/Security.h"
 
 using Microsoft::WRL::ComPtr;
 using namespace std::chrono_literals;
@@ -3500,6 +3501,10 @@ bool DecodeImageBytesToPixels(const std::vector<uint8_t>& bytes, BitmapPixels* o
     }
 
     void* locked = GlobalLock(mem);
+    if (!locked) {
+        GlobalFree(mem);
+        return false;
+    }
     memcpy(locked, bytes.data(), bytes.size());
     GlobalUnlock(mem);
 
@@ -4125,6 +4130,21 @@ PixelsRef FindMediaSourceIcon(const std::wstring& sourceAppUserModelId) {
     return pixels;
 }
 
+// Standalone 0.8/0.9: every Bluetooth / stream WinRT call has a deadline. A plain .get() can
+// block forever if the radio or a device misbehaves, freezing the Bluetooth
+// thread (and its watchers' bookkeeping) for good. Timeout or error -> fallback.
+template <typename T>
+T AwaitOr(winrt::Windows::Foundation::IAsyncOperation<T> const& op, uint32_t timeoutMs, T fallback) {
+    try {
+        if (op.wait_for(std::chrono::milliseconds(timeoutMs)) == winrt::Windows::Foundation::AsyncStatus::Completed) {
+            return op.GetResults();
+        }
+        op.Cancel();
+    } catch (...) {
+    }
+    return fallback;
+}
+
 std::vector<uint8_t> ReadWinRtStreamBytes(
     const winrt::Windows::Storage::Streams::IRandomAccessStreamReference& reference) {
     std::vector<uint8_t> bytes;
@@ -4132,21 +4152,31 @@ std::vector<uint8_t> ReadWinRtStreamBytes(
         return bytes;
     }
 
-    auto stream = reference.OpenReadAsync().get();
-    if (!stream) {
-        return bytes;
-    }
+    try {
+        // Standalone 0.9: a stuck or hostile media app can't hang us -- every
+        // step has a deadline, and only the bytes actually loaded are read.
+        auto stream = AwaitOr(reference.OpenReadAsync(), 3000,
+                              winrt::Windows::Storage::Streams::IRandomAccessStreamWithContentType{nullptr});
+        if (!stream) {
+            return bytes;
+        }
 
-    const uint64_t size64 = stream.Size();
-    if (size64 == 0 || size64 > 8 * 1024 * 1024) {
-        return bytes;
-    }
+        const uint64_t size64 = stream.Size();
+        if (size64 == 0 || size64 > 8 * 1024 * 1024) {
+            return bytes;
+        }
 
-    const uint32_t size = static_cast<uint32_t>(size64);
-    winrt::Windows::Storage::Streams::DataReader reader(stream.GetInputStreamAt(0));
-    reader.LoadAsync(size).get();
-    bytes.resize(size);
-    reader.ReadBytes(winrt::array_view<uint8_t>(bytes.data(), bytes.data() + bytes.size()));
+        const uint32_t size = static_cast<uint32_t>(size64);
+        winrt::Windows::Storage::Streams::DataReader reader(stream.GetInputStreamAt(0));
+        const uint32_t loaded = AwaitOr<uint32_t>(reader.LoadAsync(size), 3000, 0u);
+        if (loaded == 0 || loaded > size) {
+            return bytes;
+        }
+        bytes.resize(loaded);
+        reader.ReadBytes(winrt::array_view<uint8_t>(bytes.data(), bytes.data() + bytes.size()));
+    } catch (...) {
+        bytes.clear();
+    }
     return bytes;
 }
 
@@ -5229,7 +5259,7 @@ void OnListenerReady() {
 // shown a notification before the mod started.
 void EnsureFor(const std::wstring& aumid) {
     std::lock_guard lock(g_bannerMutex);
-    if (!g_suppressActive || aumid.empty() || !AumidWanted(aumid)) {
+    if (!g_suppressActive || aumid.empty() || !AumidWanted(aumid) || !di::security::IsSafeAumid(aumid)) {
         return;
     }
     if (g_appliedLower.count(ToLowerCopy(aumid))) {
@@ -5398,6 +5428,11 @@ void Publish(const TelegramLine& line, const std::wstring& aumid, const Settings
             n.app = chatApp;
         }
         n.sourceAumid = aumid;
+        // Standalone 0.9: text from the network is cut to a sane size before it
+        // is stored or drawn (a giant message can't stall layout).
+        line.text = di::security::Clip(std::move(line.text), 1000);
+        line.sender = di::security::Clip(std::move(line.sender), 128);
+        line.chat = di::security::Clip(std::move(line.chat), 128);
         n.telegramLines.insert(n.telegramLines.begin(), line);
         const size_t maxLines = static_cast<size_t>(std::max(1, settings.telegramMaxMessages));
         if (n.telegramLines.size() > maxLines) {
@@ -5588,7 +5623,7 @@ void OpenTelegram(const std::wstring& aumid) {
         ShellExecuteW(nullptr, L"open", search.exePath.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
         return;
     }
-    if (!aumid.empty()) {
+    if (!aumid.empty() && di::security::IsSafeAumid(aumid)) {
         const std::wstring shellPath = L"shell:AppsFolder\\" + aumid;
         ShellExecuteW(nullptr, L"open", shellPath.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
     }
@@ -5637,7 +5672,7 @@ void OpenDiscord(const std::wstring& aumid) {
         ShellExecuteW(nullptr, L"open", search.exePath.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
         return;
     }
-    if (!aumid.empty()) {
+    if (!aumid.empty() && di::security::IsSafeAumid(aumid)) {
         const std::wstring shellPath = L"shell:AppsFolder\\" + aumid;
         ShellExecuteW(nullptr, L"open", shellPath.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
     }
@@ -6304,21 +6339,6 @@ DWORD WINAPI NotificationThreadProc(void*) {
 #endif
 
 #if DYNAMIC_ISLAND_HAS_BLUETOOTH_WATCHER
-
-// Standalone 0.8: every Bluetooth WinRT call has a deadline. A plain .get() can
-// block forever if the radio or a device misbehaves, freezing the Bluetooth
-// thread (and its watchers' bookkeeping) for good. Timeout or error -> fallback.
-template <typename T>
-T AwaitOr(winrt::Windows::Foundation::IAsyncOperation<T> const& op, uint32_t timeoutMs, T fallback) {
-    try {
-        if (op.wait_for(std::chrono::milliseconds(timeoutMs)) == winrt::Windows::Foundation::AsyncStatus::Completed) {
-            return op.GetResults();
-        }
-        op.Cancel();
-    } catch (...) {
-    }
-    return fallback;
-}
 
 constexpr uint32_t kBtLookupTimeoutMs = 2000;  // FromIdAsync / FromBluetoothAddressAsync
 constexpr uint32_t kBtGattTimeoutMs = 3000;    // each GATT step
@@ -7748,6 +7768,9 @@ std::string HttpGet(const wchar_t* host, const wchar_t* path, bool https = true)
         DI_LOG(L"Weather HttpGet: WinHttpOpen failed with error %lu", GetLastError());
         return response;
     }
+    // Standalone 0.9: a slow or hostile server can't hang the thread or flood memory.
+    WinHttpSetTimeouts(hSession, 5000, 5000, 8000, 8000);
+    constexpr size_t kMaxResponse = 2 * 1024 * 1024;
 
     HINTERNET hConnect = WinHttpConnect(hSession, host, https ? INTERNET_DEFAULT_HTTPS_PORT : INTERNET_DEFAULT_HTTP_PORT, 0);
     if (hConnect) {
@@ -7759,13 +7782,19 @@ std::string HttpGet(const wchar_t* host, const wchar_t* path, bool https = true)
                 DWORD downloaded = 0;
                 do {
                     if (WinHttpQueryDataAvailable(hRequest, &size) && size > 0) {
-                        std::vector<char> buffer(size + 1);
-                        if (WinHttpReadData(hRequest, buffer.data(), size, &downloaded)) {
-                            buffer[downloaded] = '\0';
-                            response.append(buffer.data());
+                        std::vector<char> buffer(size);
+                        downloaded = 0;
+                        if (WinHttpReadData(hRequest, buffer.data(), size, &downloaded) && downloaded > 0) {
+                            response.append(buffer.data(), downloaded);
                         } else {
                             DI_LOG(L"Weather HttpGet: WinHttpReadData failed with error %lu", GetLastError());
+                            break;
                         }
+                    }
+                    if (response.size() > kMaxResponse) {
+                        DI_LOG(L"Weather HttpGet: response too large, dropped");
+                        response.clear();
+                        break;
                     }
                 } while (size > 0);
             } else {
