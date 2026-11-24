@@ -5430,10 +5430,11 @@ void Publish(const TelegramLine& line, const std::wstring& aumid, const Settings
         n.sourceAumid = aumid;
         // Standalone 0.9: text from the network is cut to a sane size before it
         // is stored or drawn (a giant message can't stall layout).
-        line.text = di::security::Clip(std::move(line.text), 1000);
-        line.sender = di::security::Clip(std::move(line.sender), 128);
-        line.chat = di::security::Clip(std::move(line.chat), 128);
-        n.telegramLines.insert(n.telegramLines.begin(), line);
+        TelegramLine safeLine = line;
+        safeLine.text = di::security::Clip(std::move(safeLine.text), 1000);
+        safeLine.sender = di::security::Clip(std::move(safeLine.sender), 128);
+        safeLine.chat = di::security::Clip(std::move(safeLine.chat), 128);
+        n.telegramLines.insert(n.telegramLines.begin(), std::move(safeLine));
         const size_t maxLines = static_cast<size_t>(std::max(1, settings.telegramMaxMessages));
         if (n.telegramLines.size() > maxLines) {
             n.telegramLines.resize(maxLines);

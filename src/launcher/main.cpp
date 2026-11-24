@@ -218,7 +218,11 @@ void CreateWebView() {
                             settings->put_IsZoomControlEnabled(FALSE);
 #ifdef NDEBUG
                             settings->put_AreDevToolsEnabled(FALSE);
-                            settings->put_AreBrowserAcceleratorKeysEnabled(FALSE);  // no F5/Ctrl+P/F12 tricks
+                            {
+                                ComPtr<ICoreWebView2Settings3> settings3;  // no F5/Ctrl+P/F12 tricks
+                                if (SUCCEEDED(settings.As(&settings3)) && settings3)
+                                    settings3->put_AreBrowserAcceleratorKeysEnabled(FALSE);
+                            }
 #endif
                             // Standalone 0.9: the page is our built-in HTML only -- no script bridges
                             // into native objects, no saved passwords or autofill.
