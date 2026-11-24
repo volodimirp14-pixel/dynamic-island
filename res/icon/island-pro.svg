@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <!-- Dynamic Island icon (pro): black pill, status dot. Transparent background. -->
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#26262A"/>
+      <stop offset="0.45" stop-color="#0B0B0D"/>
+      <stop offset="1" stop-color="#000000"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.34"/>
+      <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.20"/>
+    </linearGradient>
+    <radialGradient id="dot" cx="0.38" cy="0.34" r="0.75">
+      <stop offset="0" stop-color="#5BE584"/>
+      <stop offset="0.6" stop-color="#30D158"/>
+      <stop offset="1" stop-color="#1FA445"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#30D158" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#30D158" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-20%" y="-40%" width="140%" height="190%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="5"/>
+      <feOffset dy="5"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.45"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <rect x="10" y="72" width="236" height="108" rx="54" fill="url(#body)"/>
+  </g>
+  <rect x="11.5" y="73.5" width="233" height="105" rx="52.5" fill="none" stroke="url(#rim)" stroke-width="3"/>
+  <circle cx="190" cy="126" r="34" fill="url(#glow)"/>
+  <circle cx="190" cy="126" r="21" fill="url(#dot)"/>
+  <ellipse cx="184" cy="117" rx="8" ry="5" fill="#FFFFFF" opacity="0.35"/>
+</svg>
