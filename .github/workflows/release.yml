@@ -20,7 +20,7 @@ jobs:
   version:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ needs.version.outputs.version }}
+      version: ${{ steps.ver.outputs.version }}
       tag: ${{ steps.ver.outputs.tag }}
       publish: ${{ steps.ver.outputs.publish }}
     steps:
@@ -38,7 +38,8 @@ jobs:
           elif [[ "$VERSION" == *-* ]]; then
             echo "::notice::$VERSION is a pre-release version; not published."
             echo "publish=false" >> "$GITHUB_OUTPUT"
-          elif gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+          elif gh release view "$TAG" --repo "${{ github.repository }}" --json assets --jq '.assets[].name' 2>/dev/null \
+                 | grep -qx "DynamicIsland-$VERSION-win-x64.zip"; then
             echo "::notice::Release $TAG already exists."
             echo "publish=false" >> "$GITHUB_OUTPUT"
           else
@@ -90,7 +91,16 @@ jobs:
         run: |
           TAG="${{ needs.version.outputs.tag }}"
           if gh release view "$TAG" >/dev/null 2>&1; then
+            # Existing release (re-publish / repair): refresh files and title, and
+            # drop only our own zips that do not belong to this version.
             gh release upload "$TAG" pack/* --clobber
+            gh release edit "$TAG" --title "Dynamic Island ${{ needs.version.outputs.version }}" --notes-file docs/RELEASE_NOTES.md
+            gh release view "$TAG" --json assets --jq '.assets[].name' | while read -r A; do
+              case "$A" in
+                DynamicIsland-${{ needs.version.outputs.version }}-win-x64.zip*) ;;
+                DynamicIsland-*-win-x64.zip*) gh release delete-asset "$TAG" "$A" --yes ;;
+              esac
+            done
           else
             gh release create "$TAG" pack/* --target "${{ github.sha }}" --title "Dynamic Island ${{ needs.version.outputs.version }}" --notes-file docs/RELEASE_NOTES.md --latest
           fi
