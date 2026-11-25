@@ -1,40 +1,56 @@
 name: release
 
-# Push a tag like v1.0.0 -> build, pack DynamicIsland-<version>-win-x64.zip,
-# publish a GitHub Release with it, and (optional) upload the same zip to itch.io.
+# Publishing a version: raise the version in src/common/Version.h and push to main.
+# If there is no GitHub Release v<version> yet, this builds, packs
+# DynamicIsland-<version>-win-x64.zip, creates the tag and the Release, and
+# (optional) uploads the same zip to itch.io. Versions with a "-" (e.g. 1.1.0-beta)
+# are not published automatically. "Run workflow" re-publishes the current version.
 # itch.io upload runs only when the repository has the secret BUTLER_API_KEY and
 # the variable ITCH_TARGET (e.g. "username/dynamic-island:windows").
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
+    paths: ["src/common/Version.h", ".github/workflows/release.yml"]
   workflow_dispatch:
-    inputs:
-      tag:
-        description: "Existing tag to (re)publish, e.g. v1.0.0"
-        required: true
 
 permissions:
   contents: write
 
 jobs:
-  build:
-    runs-on: windows-latest
+  version:
+    runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.ver.outputs.version }}
+      version: ${{ needs.version.outputs.version }}
       tag: ${{ steps.ver.outputs.tag }}
+      publish: ${{ steps.ver.outputs.publish }}
     steps:
       - uses: actions/checkout@v7
-        with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
-
       - id: ver
-        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = if ('${{ github.event.inputs.tag }}') { '${{ github.event.inputs.tag }}' } else { '${{ github.ref_name }}' }
-          $version = (Select-String -Path src/common/Version.h -Pattern 'DI_VERSION_STRING_A "([^"]+)"').Matches[0].Groups[1].Value
-          if ("v$version" -ne $tag) { throw "Tag $tag does not match program version $version" }
-          "version=$version" >> $env:GITHUB_OUTPUT
-          "tag=$tag" >> $env:GITHUB_OUTPUT
+          VERSION=$(sed -n 's/.*DI_VERSION_STRING_A "\([^"]*\)".*/\1/p' src/common/Version.h)
+          TAG="v$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$VERSION" == *-* ]]; then
+            echo "::notice::$VERSION is a pre-release version; not published."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          elif gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "::notice::Release $TAG already exists."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: version
+    if: needs.version.outputs.publish == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
 
       - name: Configure
         run: cmake -S . -B build -A x64
@@ -45,7 +61,7 @@ jobs:
       - name: Pack
         shell: pwsh
         run: |
-          $name = "DynamicIsland-${{ steps.ver.outputs.version }}-win-x64"
+          $name = "DynamicIsland-${{ needs.version.outputs.version }}-win-x64"
           New-Item -ItemType Directory -Force "pack/$name" | Out-Null
           Copy-Item build/Release/DynamicIsland.exe, build/Release/DynamicIslandLauncher.exe "pack/$name/"
           Copy-Item dist/README-ru.txt "pack/$name/README-ru.txt"
@@ -60,12 +76,10 @@ jobs:
           if-no-files-found: error
 
   github:
-    needs: build
+    needs: [version, build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.build.outputs.tag }}
       - uses: actions/download-artifact@v8
         with:
           name: release
@@ -74,15 +88,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="${{ needs.build.outputs.tag }}"
+          TAG="${{ needs.version.outputs.tag }}"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" pack/* --clobber
           else
-            gh release create "$TAG" pack/* --title "Dynamic Island ${{ needs.build.outputs.version }}" --notes-file docs/RELEASE_NOTES.md --latest
+            gh release create "$TAG" pack/* --target "${{ github.sha }}" --title "Dynamic Island ${{ needs.version.outputs.version }}" --notes-file docs/RELEASE_NOTES.md --latest
           fi
 
   itch:
-    needs: build
+    needs: [version, build]
     runs-on: ubuntu-latest
     env:
       BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
@@ -100,4 +114,4 @@ jobs:
           fi
           curl -sL -o butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
           unzip -q butler.zip -d butler && chmod +x butler/butler
-          ./butler/butler push pack/DynamicIsland-${{ needs.build.outputs.version }}-win-x64.zip "$ITCH_TARGET" --userversion "${{ needs.build.outputs.version }}"
+          ./butler/butler push pack/DynamicIsland-${{ needs.version.outputs.version }}-win-x64.zip "$ITCH_TARGET" --userversion "${{ needs.version.outputs.version }}"

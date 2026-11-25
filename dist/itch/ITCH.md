@@ -26,7 +26,7 @@
 2. На GitHub: Settings → Secrets and variables → Actions:
    - **Secrets** → New: `BUTLER_API_KEY` = ключ из шага 1;
    - **Variables** → New: `ITCH_TARGET` = `<ваш-ник>/dynamic-island:windows`.
-3. Дальше каждый выпуск (тег `vX.Y.Z`) сам загружается и на GitHub, и на itch.io.
+3. Дальше каждый выпуск (новая версия в Version.h) сам загружается и на GitHub, и на itch.io.
 
 ---
 

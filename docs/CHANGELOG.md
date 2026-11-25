@@ -5,7 +5,7 @@
 ## [1.0.0] — 2026-11-25
 Первая полная версия самостоятельной программы. Функционально равна 0.14.2-alpha.
 ### Добавлено
-- Выпуск на GitHub: тег `vX.Y.Z` собирает программу и публикует GitHub Release с архивом `DynamicIsland-<версия>-win-x64.zip` (оба .exe + `README-ru.txt` с установкой) и контрольной суммой SHA-256 (`.github/workflows/release.yml`). Версия в теге сверяется с версией программы.
+- Выпуск на GitHub: при повышении версии в `src/common/Version.h` (без «-») сам создаёт тег `vX.Y.Z` и GitHub Release с архивом `DynamicIsland-<версия>-win-x64.zip` (оба .exe + `README-ru.txt` с установкой) и контрольной суммой SHA-256 (`.github/workflows/release.yml`). Повторно опубликовать — «Run workflow» у процесса release.
 - Загрузка на itch.io тем же процессом (butler) — включается, когда в репозитории есть секрет `BUTLER_API_KEY` и переменная `ITCH_TARGET`.
 - Материалы для страницы itch.io: `dist/itch/ITCH.md` (что заполнить, описание EN/RU, теги), обложка `dist/itch/cover.png`.
 
