@@ -1,0 +1,103 @@
+name: release
+
+# Push a tag like v1.0.0 -> build, pack DynamicIsland-<version>-win-x64.zip,
+# publish a GitHub Release with it, and (optional) upload the same zip to itch.io.
+# itch.io upload runs only when the repository has the secret BUTLER_API_KEY and
+# the variable ITCH_TARGET (e.g. "username/dynamic-island:windows").
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)publish, e.g. v1.0.0"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      tag: ${{ steps.ver.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - id: ver
+        shell: pwsh
+        run: |
+          $tag = if ('${{ github.event.inputs.tag }}') { '${{ github.event.inputs.tag }}' } else { '${{ github.ref_name }}' }
+          $version = (Select-String -Path src/common/Version.h -Pattern 'DI_VERSION_STRING_A "([^"]+)"').Matches[0].Groups[1].Value
+          if ("v$version" -ne $tag) { throw "Tag $tag does not match program version $version" }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+
+      - name: Configure
+        run: cmake -S . -B build -A x64
+
+      - name: Build
+        run: cmake --build build --config Release -- /m
+
+      - name: Pack
+        shell: pwsh
+        run: |
+          $name = "DynamicIsland-${{ steps.ver.outputs.version }}-win-x64"
+          New-Item -ItemType Directory -Force "pack/$name" | Out-Null
+          Copy-Item build/Release/DynamicIsland.exe, build/Release/DynamicIslandLauncher.exe "pack/$name/"
+          Copy-Item dist/README-ru.txt "pack/$name/README-ru.txt"
+          Compress-Archive -Path "pack/$name/*" -DestinationPath "pack/$name.zip"
+          (Get-FileHash "pack/$name.zip" -Algorithm SHA256).Hash.ToLower() + "  $name.zip" | Out-File -Encoding ascii "pack/$name.zip.sha256"
+          Get-Content "pack/$name.zip.sha256"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release
+          path: pack/*.zip*
+          if-no-files-found: error
+
+  github:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.build.outputs.tag }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: release
+          path: pack
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ needs.build.outputs.tag }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" pack/* --clobber
+          else
+            gh release create "$TAG" pack/* --title "Dynamic Island ${{ needs.build.outputs.version }}" --notes-file docs/RELEASE_NOTES.md --latest
+          fi
+
+  itch:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+      ITCH_TARGET: ${{ vars.ITCH_TARGET }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release
+          path: pack
+      - name: Upload to itch.io
+        run: |
+          if [ -z "$BUTLER_API_KEY" ] || [ -z "$ITCH_TARGET" ]; then
+            echo "::notice title=itch.io skipped::Add secret BUTLER_API_KEY and variable ITCH_TARGET to upload automatically."
+            exit 0
+          fi
+          curl -sL -o butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
+          unzip -q butler.zip -d butler && chmod +x butler/butler
+          ./butler/butler push pack/DynamicIsland-${{ needs.build.outputs.version }}-win-x64.zip "$ITCH_TARGET" --userversion "${{ needs.build.outputs.version }}"

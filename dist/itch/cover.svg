@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="630" height="500" viewBox="0 0 630 500">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2b2d42"/><stop offset="1" stop-color="#0f1020"/>
+    </linearGradient>
+  </defs>
+  <rect width="630" height="500" fill="url(#bg)"/>
+  <!-- the island -->
+  <rect x="135" y="150" width="360" height="120" rx="60" fill="#000"/>
+  <circle cx="435" cy="210" r="30" fill="#30D158"/>
+  <text x="200" y="224" font-family="Segoe UI, DejaVu Sans, sans-serif" font-size="40" font-weight="700" fill="#fff">11:43</text>
+  <text x="315" y="352" text-anchor="middle" font-family="Segoe UI, DejaVu Sans, sans-serif" font-size="40" font-weight="700" fill="#fff">Dynamic Island</text>
+  <text x="315" y="392" text-anchor="middle" font-family="Segoe UI, DejaVu Sans, sans-serif" font-size="22" fill="#b8bcc8">for Windows 10 / 11</text>
+</svg>

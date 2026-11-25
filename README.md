@@ -1,5 +1,8 @@
 # Dynamic Island for Windows (custom)
 
+## Скачать
+Последняя версия — на странице [Releases](https://github.com/volodimirp14-pixel/dynamic-island/releases/latest): скачайте `DynamicIsland-…-win-x64.zip`, распакуйте и запустите `DynamicIslandLauncher.exe`. Нужна Windows 10 или 11 (64 бит).
+
 ## Поддержать проект
 Dynamic Island бесплатный и со всеми функциями. Поддержать разработку можно донатом:
 - **Донат EU** (Европа и остальной мир): [donatello.to/DynamicIsland](https://donatello.to/DynamicIsland)
