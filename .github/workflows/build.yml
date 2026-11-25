@@ -9,7 +9,7 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Configure
         run: cmake -S . -B build -A x64
@@ -29,7 +29,7 @@ jobs:
           }
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: DynamicIsland-${{ github.sha }}
           path: build/Release/*.exe
