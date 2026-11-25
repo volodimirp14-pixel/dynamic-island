@@ -2,6 +2,10 @@
 
 Формат: [версия] — дата — что изменилось.
 
+## [standalone 0.14.2-alpha] — 2026-11-25
+### Изменено
+- Launcher: раздел «Поддержать» (бывший «Pro») переименован в «Донат»; на кнопках — куда ведёт ссылка: «Задонатить через Donatello» (EU) и «Задонатить через DonatePay» (RU).
+
 ## [standalone 0.14.1-alpha] — 2026-11-25
 ### Изменено
 - Вставлены ссылки на донат: **Донат EU** — Donatello (https://donatello.to/DynamicIsland), **Донат RU** — DonatePay (https://donatepay.ru/don/1545186). В Launcher, README и на странице сайта кнопки теперь активны.

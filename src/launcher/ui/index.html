@@ -183,7 +183,7 @@ const PAGES = [
   { id: 'games', title: 'Игры', groups: ['GameMode'] },
   { id: 'behavior', title: 'Поведение', groups: ['Behavior', 'QuietMode', 'Shortcuts'] },
   { id: 'system', title: 'Система' },
-  { id: 'donate', title: 'Поддержать' },
+  { id: 'donate', title: 'Донат' },
   { id: 'about', title: 'О программе' },
 ];
 
@@ -383,12 +383,12 @@ function aboutHtml() {
 // Standalone 0.14: the program is complete and free; support is a donation.
 // The links live in src/common/Links.h; until one is set its button is inactive.
 function donateHtml() {
-  const card = (id, title, text, ok) => `<div class="plan"><h3>${title}</h3><div class="price">${text}</div>
-    <button class="btn primary" data-open="${id}" ${ok ? '' : 'disabled'}>Поддержать</button>
+  const card = (id, title, text, button, ok) => `<div class="plan"><h3>${title}</h3><div class="price">${text}</div>
+    <button class="btn primary" data-open="${id}" ${ok ? '' : 'disabled'}>${button}</button>
     ${ok ? '' : '<p class="note" style="margin:10px 0 0">Ссылка скоро появится.</p>'}</div>`;
   return `<section><div class="card"><div class="row"><div class="label"><b>Dynamic Island бесплатный и со всеми функциями</b>
       <span>Если программа вам нравится, поддержите разработку донатом — это помогает выпускать обновления.</span></div></div></div></section>
-    <div class="plans">${card('donateEU', 'Донат EU', 'Для Европы и остального мира', state.donate.eu)}${card('donateRU', 'Донат RU', 'Для России и СНГ', state.donate.ru)}</div>`;
+    <div class="plans">${card('donateEU', 'Донат EU', 'Для Европы и остального мира · Donatello', 'Задонатить через Donatello', state.donate.eu)}${card('donateRU', 'Донат RU', 'Для России и СНГ · DonatePay', 'Задонатить через DonatePay', state.donate.ru)}</div>`;
 }
 
 function render() {
